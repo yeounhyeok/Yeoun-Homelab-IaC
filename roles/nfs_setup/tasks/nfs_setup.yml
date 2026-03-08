@@ -6,6 +6,7 @@
   apt:
     update_cache: yes
     cache_valid_time: 3600
+
 - name: "[Server] Install NFS Server package on n4000"
   apt:
     name: nfs-kernel-server
@@ -20,17 +21,17 @@
 # ---------------------------------------------------------
 # [PRE-CHECK & CLEANUP] 구시대의 유물 정리 (중요)
 # ---------------------------------------------------------
-- name: "[Client] Unmount OLD problematic NFS paths"
-  mount:
-    path: "/home/yeoun/docker_volumes"  # 과거에 쓰던 꼬인 경로
-    state: absent                       # fstab에서도 지우고 마운트도 해제
-  when: inventory_hostname != 'n4000'
-
-- name: "[Server] Remove OLD symbolic link on n4000"
-  file:
-    path: "/home/yeoun/docker_volumes"
-    state: absent
-  when: inventory_hostname == 'n4000'
+#- name: "[Client] Unmount OLD problematic NFS paths"
+#  mount:
+#    path: "/home/yeoun/docker_volumes"  # 과거에 쓰던 꼬인 경로
+#    state: absent                       # fstab에서도 지우고 마운트도 해제
+#  when: inventory_hostname != 'n4000'
+#
+#- name: "[Server] Remove OLD symbolic link on n4000"
+#  file:
+#    path: "/home/yeoun/docker_volumes"
+#    state: absent
+#  when: inventory_hostname == 'n4000'
 
 # ---------------------------------------------------------
 # [SERVER] NFS 서버 설정 (n4000)
@@ -56,6 +57,39 @@
 # ---------------------------------------------------------
 # [CLIENT] 새로운 표준 경로로 마운트 (Worker Nodes)
 # ---------------------------------------------------------
+- name: "[Client] Collect currently mounted NFS paths"
+  command: findmnt -rn -t nfs,nfs4 -o TARGET
+  register: mounted_nfs_targets
+  changed_when: false
+  failed_when: false
+  when: inventory_hostname != 'n4000'
+
+- name: "[Client] Set mounted NFS path list"
+  set_fact:
+    mounted_nfs_paths: "{{ mounted_nfs_targets.stdout_lines | default([]) }}"
+  when: inventory_hostname != 'n4000'
+
+- name: "[Client] Unmount existing NFS mounts"
+  shell: |
+    if mountpoint -q "{{ item }}"; then
+      umount "{{ item }}" || umount -l "{{ item }}"
+    fi
+  args:
+    executable: /bin/bash
+  loop: "{{ mounted_nfs_paths | default([]) }}"
+  failed_when: false
+  changed_when: true
+  when:
+    - inventory_hostname != 'n4000'
+    - item != client_mount_path
+
+- name: "[Client] Remove existing NFS entries from fstab"
+  lineinfile:
+    path: /etc/fstab
+    regexp: '^[^#].*\s+nfs[0-9]*\s+.*$'
+    state: absent
+  when: inventory_hostname != 'n4000'
+
 - name: "[Client] Ensure NEW mount point directory exists"
   file:
     path: "{{ client_mount_path }}"  # 표준 경로로 통일
@@ -73,5 +107,3 @@
     opts: "defaults,_netdev,nofail,soft,timeo=14,retrans=2"
     state: mounted
   when: inventory_hostname != 'n4000'
-
-

@@ -48,6 +48,29 @@
     hub_info: "{{ hub_info | default({'name': 'n4000', 'public_key': 'SIb8eIm+y9dUq5erNdBQgKYbce084KsFa/nnUiGn4j0=', 'endpoint': 'yeopeter1031.mooo.com:11052'}) }}"
     all_peers: "{{ all_peers | default([]) }}"
 
+- name: Check current MTU on n4200 wlp1s0
+  command: ip -o link show wlp1s0
+  register: n4200_wlp1s0_link
+  changed_when: false
+  failed_when: false
+  when: inventory_hostname == 'n4200'
+  become: yes
+
+# wlp1s0 과 wg0 사이에서 발생하는 병목으로 인한 mtu조정
+- name: Set MTU 1400 on n4200 wlp1s0
+  shell: |
+    if command -v ifconfig >/dev/null 2>&1; then
+      ifconfig wlp1s0 mtu 1400
+    else
+      ip link set dev wlp1s0 mtu 1400
+    fi
+  args:
+    executable: /bin/bash
+  when:
+    - inventory_hostname == 'n4200'
+    - "'mtu 1400' not in (n4200_wlp1s0_link.stdout | default(''))"
+  become: yes
+
 
 - name: Generate WireGuard configuration from template
   template:

@@ -3,6 +3,11 @@
 - hosts: all
   gather_facts: false
   tasks:
+    - name: Load encrypted shared variables
+      include_vars:
+        file: "{{ playbook_dir }}/group_vars/secrets.yml"
+      no_log: true
+
     - name: Apply host-specific variables
       set_fact:
         "{{ item.key }}": "{{ item.value }}"
@@ -17,7 +22,8 @@
     - common
   tags: common
 
-# !!! wireguard 주의 - 중간에 끊겨버림 -> 실제 주소 기준으로 가는게 나을듯
+# !!! wireguard 주의 - At first, --limit n4000 option needed because it is the vpn hub
+# please play in only n4000 first then play the others
 - hosts: all
   become: yes
   roles:

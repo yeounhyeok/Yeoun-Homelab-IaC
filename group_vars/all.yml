@@ -1,7 +1,7 @@
 ---
 # 공통 경로 및 네트워크 설정
-real_data_path: "/mnt/usb/docker_volumes"
-client_mount_path: "/mnt/nfs_volumes"
+real_data_path: "/mnt/usb"
+client_mount_path: "/mnt/nfs"
 local_service_path: "/home/{{ ansible_user }}/docker_volumes"
 vpn_network: "10.0.1.0/24"
 nfs_server_ip: "10.0.1.10"

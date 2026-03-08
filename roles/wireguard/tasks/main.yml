@@ -1,10 +1,10 @@
 ---
-- name: "docker stop all"
-  import_tasks: docker_stop_all.yml
+#- name: "docker stop all"
+#  import_tasks: docker_stop_all.yml
 
 - name: "wireguard Setup"
   import_tasks: wireguard_setup.yml
 
-- name: "docker start all"
-  import_tasks: docker_start_all.yml
+#- name: "docker start all"
+#  import_tasks: docker_start_all.yml
 
