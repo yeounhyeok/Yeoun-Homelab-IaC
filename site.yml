@@ -52,9 +52,7 @@
       - syncthing
       - vaultwarden
       - adguardhome
-#      - frpc_n4000
   roles:
-#    - common
     - deploy_services
   tags: deploy
 
@@ -67,12 +65,10 @@
       - code-server
       - onlyoffice
       - uptimekuma
-      #- grafana
-      #- frpc_arm
+      - grafana
       - nginx-proxy-manager
       - jellyfin
   roles:
-#    - common
     - deploy_services
   tags: deploy
 
@@ -85,7 +81,6 @@
       - homepage
       - home-assistant
   roles:
-#    - common
     - deploy_services
   tags: deploy
 
