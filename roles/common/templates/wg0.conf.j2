@@ -5,32 +5,32 @@ ListenPort = 51820
 DNS = 10.0.1.10
 
 {% if inventory_hostname == 'n4000' %}
-# --- [ HUB 전용 설정 ] ---
-
+# --- [ HUB 전용 설정: N4000 ] ---
 PostUp = iptables -I FORWARD 1 -i %i -j ACCEPT; iptables -I FORWARD 1 -o %i -j ACCEPT; iptables -t nat -A POSTROUTING -o {{ public_interface }} -j MASQUERADE
 PostDown = iptables -D FORWARD -i %i -j ACCEPT; iptables -D FORWARD -o %i -j ACCEPT; iptables -t nat -D POSTROUTING -o {{ public_interface }} -j MASQUERADE
 
 {% for peer in all_peers %}
-
 {% if peer.name != 'n4000' %}
 # Peer: {{ peer.name }}
 [Peer]
 PublicKey = {{ peer.pub }}
 AllowedIPs = {{ peer.ip }}/32
-
 {% endif %}
-
 {% endfor %}
 
 {% else %}
-# --- [ Worker 노드 전용 설정 (VPS, N4000, N4200) ] ---
-
+# --- [ Worker 노드 전용 설정 (OCI-ARM, N4200 등) ] ---
 PostUp = resolvectl dns %i 10.0.1.10; resolvectl domain %i "~."
 PostDown = resolvectl revert %i
 
 [Peer]
 PublicKey = {{ hub_info.public_key }}
+{# OCI-ARM 노드일 경우에만 백준 IP 대역 추가 #}
+{% if inventory_hostname == 'oci-arm-node' %}
+AllowedIPs = 10.0.1.0/24, 13.192.194.33/32, 35.72.131.211/32
+{% else %}
 AllowedIPs = 10.0.1.0/24
+{% endif %}
 Endpoint = {{ hub_info.endpoint }}
 PersistentKeepalive = 25
 
