@@ -68,7 +68,8 @@ ansibleWorkspace/
 - `ansible_ssh_private_key_file` — SSH 개인키 경로
 - `hub_info` — Hub 이름, public_key, endpoint
 - `all_peers` — WireGuard Peer 목록 (name, ip, pub)
-- `host_specific` — 호스트별 `endpoint`, `public_key`, `private_key`, `address`, `public_interface` (arm, vps, n4000, n4200)
+- `host_specific` — 호스트별 `endpoint`, `public_key`, `private_key`, `address`, `public_interface` (arm, n4000, n4200)
+  - NOTE: vps 노드는 성능/회선 이슈로 현재 구성에서 제거됨
 
 **복호화:** `ansible-playbook ...` 실행 시 `ansible.cfg`의 `vault_password_file = .vault_pass` 로 자동 사용 (`.vault_pass`는 `.gitignore`로 저장소 제외).
 
@@ -82,7 +83,8 @@ ansibleWorkspace/
 - **Inventory** — INI 형식, 그룹(oci_nodes, home_nodes, tmp_nodes), 호스트 변수
 
 ### 네트워크·VPN
-- **WireGuard** — 메시 VPN, Hub(n4000) / Worker(arm, vps, n4200) 토폴로지
+- **WireGuard** — 메시 VPN, Hub(n4000) / Worker(arm, n4200) 토폴로지
+  - NOTE: vps 노드는 성능/회선 이슈로 현재 구성에서 제거됨
 - **iptables** — Hub에서 FORWARD/NAT (MASQUERADE)
 - **resolvectl** — Worker 노드 DNS (wg 인터페이스용)
 
@@ -134,6 +136,6 @@ ansibleWorkspace/
 4. **n4000** — deploy_services (nextcloud, immich-app, syncthing, vaultwarden, adguardhome 등)
 5. **arm** — deploy_services (authentik, code-server, onlyoffice, uptimekuma, nginx-proxy-manager, jellyfin 등)
 6. **n4200** — deploy_services (ghost, homepage, home-assistant)
-7. **vps** — (주석 처리) gateway 용도
+7. ~~vps~~ — (제거됨) gateway 용도(legacy). 성능/회선 이슈로 현재 구성에서 제외
 
 이 문서는 워크스페이스 구조와 핵심 기술을 한눈에 보기 위해 작성되었습니다.

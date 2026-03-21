@@ -9,7 +9,7 @@
 | 구분 | 노드 | 역할 |
 |------|------|------|
 | **OCI** | `arm` | 컴퓨팅 (Authentik, Code-Server, Jellyfin, NPM…) |
-| **OCI** | `vps` | 게이트웨이 (Legacy) |
+| ~~**OCI**~~ | ~~`vps`~~ | ~~게이트웨이 (Legacy)~~ *(제거됨: 성능/회선 이슈)* |
 | **Home** | `n4000` | **Hub** — NFS 서버, WireGuard 허브, 데이터(Nextcloud, Immich, Syncthing…) |
 | **Home** | `n4200` | 엣지 (Ghost, Homepage, Home Assistant) |
 
