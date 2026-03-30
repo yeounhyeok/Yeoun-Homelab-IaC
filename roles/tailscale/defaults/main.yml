@@ -1,0 +1,16 @@
+---
+# WireGuard remains the primary management network.
+# This role adds Tailscale as a backup access path.
+tailscale_enabled: true
+
+# Keep secrets out of git. Put vault_tailscale_auth_key in group_vars/secrets.yml.
+tailscale_auth_key: "{{ vault_tailscale_auth_key | default('') }}"
+
+# Example: ["tag:homelab", "tag:mgmt-backup"]
+tailscale_tags: []
+
+tailscale_hostname: "{{ inventory_hostname }}"
+tailscale_accept_dns: false
+tailscale_login_server: ""
+tailscale_extra_args: []
+tailscale_force_reauth: false

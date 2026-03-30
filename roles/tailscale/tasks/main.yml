@@ -1,0 +1,64 @@
+---
+- name: Validate Tailscale config for backup management path
+  assert:
+    that:
+      - tailscale_tags is iterable
+      - tailscale_tags is not string
+      - tailscale_auth_key | length > 0
+    fail_msg: "Set vault_tailscale_auth_key and optional tailscale_tags before applying tailscale role."
+  when: tailscale_enabled | bool
+
+- name: Install Tailscale package
+  apt:
+    name: tailscale
+    state: present
+    update_cache: yes
+  become: yes
+  when: tailscale_enabled | bool
+
+- name: Ensure tailscaled is enabled and running
+  service:
+    name: tailscaled
+    state: started
+    enabled: yes
+  become: yes
+  when: tailscale_enabled | bool
+
+- name: Check current Tailscale status
+  command: tailscale status --json
+  register: tailscale_status
+  changed_when: false
+  failed_when: false
+  become: yes
+  when: tailscale_enabled | bool
+
+- name: Bring node into tailnet (backup path only)
+  command: >-
+    tailscale up
+    --authkey={{ tailscale_auth_key }}
+    --hostname={{ tailscale_hostname }}
+    --accept-dns={{ tailscale_accept_dns | ternary('true', 'false') }}
+    {% if tailscale_tags | length > 0 %}--advertise-tags={{ tailscale_tags | join(',') }}{% endif %}
+    {% if tailscale_login_server | length > 0 %}--login-server={{ tailscale_login_server }}{% endif %}
+    {{ tailscale_extra_args | join(' ') }}
+  no_log: true
+  become: yes
+  register: tailscale_up
+  changed_when: tailscale_up.rc == 0
+  when:
+    - tailscale_enabled | bool
+    - tailscale_force_reauth | bool or tailscale_status.rc != 0
+
+- name: Minimal validation - tailscale binary is responsive
+  command: tailscale version
+  changed_when: false
+  become: yes
+  when: tailscale_enabled | bool
+
+- name: Minimal validation - node has tailnet IPv4
+  command: tailscale ip -4
+  register: tailscale_ipv4
+  changed_when: false
+  failed_when: tailscale_ipv4.rc != 0
+  become: yes
+  when: tailscale_enabled | bool
