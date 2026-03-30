@@ -41,57 +41,57 @@
     - nfs_setup
   tags: nfs
 
-# 1. 🐢 N4000: Data Warehouse hub (HDD/유선)
-- hosts: n4000
-  become: yes
-  vars:
-    client_mount_path: "/mnt/usb/docker_volumes"
-    target_services:
-      - nextcloud
-      - immich-app
-      - syncthing
-      - vaultwarden
-      - adguardhome
-  roles:
-    - deploy_services
-  tags: deploy
-
-# 2. ⚡ OCI ARM: Compute Power (RAM 24GB)
-- hosts: arm
-  become: yes
-  vars:
-    target_services:
-      - authentik
-      - code-server
-      - onlyoffice
-      - uptimekuma
-      - grafana
-      - nginx-proxy-manager
-      - jellyfin
-  roles:
-    - deploy_services
-  tags: deploy
-
-# 3. 🚀 N4200: Edge Worker (SSD/Web)
-- hosts: n4200
-  become: yes
-  vars:
-    target_services:
-      - ghost
-      - homepage
-      - home-assistant
-  roles:
-    - deploy_services
-  tags: deploy
-
-# 4. 🛡️ OCI AMD (vps): Gateway
-#- hosts: vps
+#- hosts: n4000
+## 1. 🐢 N4000: Data Warehouse hub (HDD/유선)
+#  become: yes
+#  vars:
+#    client_mount_path: "/mnt/usb/docker_volumes"
+#    target_services:
+#      - nextcloud
+#      - immich-app
+#      - syncthing
+#      - vaultwarden
+#      - adguardhome
+#  roles:
+#    - deploy_services
+#  tags: deploy
+#
+## 2. ⚡ OCI ARM: Compute Power (RAM 24GB)
+#- hosts: arm
 #  become: yes
 #  vars:
 #    target_services:
+#      - authentik
+#      - code-server
+#      - onlyoffice
+#      - uptimekuma
+#      - grafana
 #      - nginx-proxy-manager
-#      - frps_vps
+#      - jellyfin
 #  roles:
+#    - deploy_services
+#  tags: deploy
+#
+## 3. 🚀 N4200: Edge Worker (SSD/Web)
+#- hosts: n4200
+#  become: yes
+#  vars:
+#    target_services:
+#      - ghost
+#      - homepage
+#      - home-assistant
+#  roles:
+#    - deploy_services
+#  tags: deploy
+#
+## 4. 🛡️ OCI AMD (vps): Gateway
+##- hosts: vps
+##  become: yes
+##  vars:
+##    target_services:
+##      - nginx-proxy-manager
+##      - frps_vps
+##  roles:
 #    - common
 #    - deploy_services
 #  tags: deploy
