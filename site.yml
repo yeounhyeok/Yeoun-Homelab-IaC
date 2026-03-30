@@ -41,6 +41,14 @@
     - nfs_setup
   tags: nfs
 
+
+# set tailscale backdoor for emergency
+- hosts: all
+  become: yes
+  roles:
+    - tailscale
+  tags: tailscale
+
 #- hosts: n4000
 ## 1. 🐢 N4000: Data Warehouse hub (HDD/유선)
 #  become: yes

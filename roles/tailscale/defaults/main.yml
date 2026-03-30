@@ -14,3 +14,5 @@ tailscale_accept_dns: false
 tailscale_login_server: ""
 tailscale_extra_args: []
 tailscale_force_reauth: false
+# Re-apply "tailscale up" on every run so option changes are reflected immediately.
+tailscale_reapply_on_each_run: true

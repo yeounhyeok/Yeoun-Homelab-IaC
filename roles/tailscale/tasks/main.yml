@@ -8,6 +8,54 @@
     fail_msg: "Set vault_tailscale_auth_key and optional tailscale_tags before applying tailscale role."
   when: tailscale_enabled | bool
 
+- name: Validate OS support for tailscale apt repository
+  assert:
+    that:
+      - ansible_os_family == "Debian"
+      - ansible_distribution in ["Debian", "Ubuntu", "Raspbian"]
+    fail_msg: "This tailscale role currently supports Debian/Ubuntu/Raspbian hosts only."
+  when: tailscale_enabled | bool
+
+- name: Determine distro channel used by Tailscale apt repository
+  set_fact:
+    tailscale_repo_distro: "{{ 'ubuntu' if ansible_distribution == 'Ubuntu' else 'debian' }}"
+  when: tailscale_enabled | bool
+
+- name: Install apt prerequisites for Tailscale repository
+  apt:
+    name:
+      - ca-certificates
+      - curl
+      - gnupg
+    state: present
+    update_cache: yes
+  become: yes
+  when: tailscale_enabled | bool
+
+- name: Ensure apt keyrings directory exists
+  file:
+    path: /usr/share/keyrings
+    state: directory
+    mode: "0755"
+  become: yes
+  when: tailscale_enabled | bool
+
+- name: Add Tailscale apt repository keyring
+  get_url:
+    url: "https://pkgs.tailscale.com/stable/{{ tailscale_repo_distro }}/{{ ansible_distribution_release }}.noarmor.gpg"
+    dest: /usr/share/keyrings/tailscale-archive-keyring.gpg
+    mode: "0644"
+  become: yes
+  when: tailscale_enabled | bool
+
+- name: Add Tailscale apt repository list
+  get_url:
+    url: "https://pkgs.tailscale.com/stable/{{ tailscale_repo_distro }}/{{ ansible_distribution_release }}.tailscale-keyring.list"
+    dest: /etc/apt/sources.list.d/tailscale.list
+    mode: "0644"
+  become: yes
+  when: tailscale_enabled | bool
+
 - name: Install Tailscale package
   apt:
     name: tailscale
@@ -47,7 +95,7 @@
   changed_when: tailscale_up.rc == 0
   when:
     - tailscale_enabled | bool
-    - tailscale_force_reauth | bool or tailscale_status.rc != 0
+    - tailscale_force_reauth | bool or tailscale_reapply_on_each_run | bool or tailscale_status.rc != 0
 
 - name: Minimal validation - tailscale binary is responsive
   command: tailscale version
