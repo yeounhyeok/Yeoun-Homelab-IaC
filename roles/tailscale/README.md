@@ -19,6 +19,7 @@ tailscale_tags:
 tailscale_force_reauth: false
 tailscale_reapply_on_each_run: true
 tailscale_accept_dns: false
+tailscale_apt_lock_timeout_seconds: 180
 ```
 
 Run only this pass:

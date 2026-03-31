@@ -16,3 +16,8 @@ tailscale_extra_args: []
 tailscale_force_reauth: false
 # Re-apply "tailscale up" on every run so option changes are reflected immediately.
 tailscale_reapply_on_each_run: true
+
+# apt lock handling
+tailscale_apt_lock_timeout_seconds: 180
+tailscale_apt_retries: 2
+tailscale_apt_retry_delay_seconds: 10
