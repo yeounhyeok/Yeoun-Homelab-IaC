@@ -1,0 +1,35 @@
+---
+- name: Install zram-tools
+  apt:
+    name: zram-tools
+    state: present
+    update_cache: yes
+
+- name: Configure zram swap
+  copy:
+    dest: /etc/default/zramswap
+    mode: "0644"
+    content: |
+      ALGO=zstd
+      PERCENT={{ zram_percent }}
+      PRIORITY={{ zram_priority }}
+  register: zram_config
+
+- name: Configure vm.swappiness
+  sysctl:
+    name: vm.swappiness
+    value: "{{ vm_swappiness }}"
+    state: present
+    sysctl_set: true
+    reload: true
+
+- name: Enable zramswap service
+  systemd:
+    name: zramswap.service
+    enabled: yes
+
+- name: Restart zramswap service
+  systemd:
+    name: zramswap.service
+    state: restarted
+  when: zram_config.changed

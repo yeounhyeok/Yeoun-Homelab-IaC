@@ -1,10 +1,18 @@
 ---
-#- name: "docker stop all"
-#  import_tasks: docker_stop_all.yml
+# !!! wireguard 주의 - At first, --limit n4000 option needed because it is the vpn hub
+# please play in only n4000 first then play the others
+# LEGACY BECAUSE OF ITS INSTABILITY WHILE SETTING
+
+# this was in site.yml
+
+# - hosts: all
+#   become: yes
+#   roles:
+#     - wireguard
+#   tags: wireguard
 
 - name: "wireguard Setup"
   import_tasks: wireguard_setup.yml
 
-#- name: "docker start all"
-#  import_tasks: docker_start_all.yml
+
 

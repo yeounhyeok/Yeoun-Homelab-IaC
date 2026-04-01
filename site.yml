@@ -22,15 +22,19 @@
     - common
   tags: common
 
-# !!! wireguard 주의 - At first, --limit n4000 option needed because it is the vpn hub
-# please play in only n4000 first then play the others
-# LEGACY BECAUSE OF ITS INSTABILITY WHILE SETTING
+- hosts: all
+  become: yes
+  roles:
+    - ram_optimization
+  tags: ram
 
-# - hosts: all
-#   become: yes
-#   roles:
-#     - wireguard
-#   tags: wireguard
+
+# set tailscale 
+- hosts: all
+  become: yes
+  roles:
+    - tailscale
+  tags: tailscale
 
 # nfs setup
 - hosts: all
@@ -40,13 +44,6 @@
     - nfs_setup
   tags: nfs
 
-
-# set tailscale 
-- hosts: all
-  become: yes
-  roles:
-    - tailscale
-  tags: tailscale
 
 #- hosts: n4000
 ## 1. 🐢 N4000: Data Warehouse hub (HDD/유선)
