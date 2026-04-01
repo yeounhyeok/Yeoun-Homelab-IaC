@@ -14,12 +14,12 @@
 # [수정 후: 확실한 방법 (rsync 직접 호출)]
 - name: Stat Source Service Directory
   stat:
-    path: "{{ client_mount_path }}/docker_volumes/{{ item }}/"
+    path: "{{ ts_nfs_client_mount_path }}/docker_volumes/{{ item }}/"
   register: source_dir_stats
   loop: "{{ target_services }}"
 
 - name: Check pending updates from NFS to Local
-  command: "rsync -ani --update {{ client_mount_path }}/docker_volumes/{{ item }}/ {{ local_service_path }}/{{ item }}/"
+  command: "rsync -ani --update {{ ts_nfs_client_mount_path }}/docker_volumes/{{ item }}/ {{ local_service_path }}/{{ item }}/"
   register: sync_check_results
   changed_when: false
   loop: "{{ target_services }}"
@@ -29,7 +29,7 @@
     - source_dir_stats.results[svc_index].stat.exists
 
 - name: Sync missing files from NFS to Local without overwrite
-  command: "rsync -a --ignore-existing {{ client_mount_path }}/docker_volumes/{{ item }}/ {{ local_service_path }}/{{ item }}/"
+  command: "rsync -a --ignore-existing {{ ts_nfs_client_mount_path }}/docker_volumes/{{ item }}/ {{ local_service_path }}/{{ item }}/"
   loop: "{{ target_services }}"
   loop_control:
     index_var: svc_index

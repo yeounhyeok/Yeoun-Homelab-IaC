@@ -1,6 +1,6 @@
 # 🏠 Home Lab IaC
 
-**WireGuard VPN + NFS + Docker Compose** 로 묶은 멀티노드 홈 인프라를 한 번에 굴리는 Ansible 워크스페이스.
+**WireGuard + Tailscale + NFS + Docker Compose** 기반 멀티노드 홈 인프라를 자동화하는 Ansible 워크스페이스.
 
 ---
 
@@ -9,10 +9,10 @@
 | 구분 | 노드 | 역할 |
 |------|------|------|
 | **OCI** | `arm` | 컴퓨팅 (Authentik, Code-Server, Jellyfin, NPM…) |
-| **Home** | `n4000` | **Hub** — NFS 서버, WireGuard 허브, 데이터(Nextcloud, Immich, Syncthing…) |
+| **Home** | `n4000` | **Hub** — NFS 서버, WireGuard 허브, Tailscale Exit Node |
 | **Home** | `n4200` | 엣지 (Ghost, Homepage, Home Assistant) |
 
-→ **site.yml**를 통해 VPN·NFS·서비스 배포까지 가능합니다.
+→ **site.yml**로 네트워크/WireGuard, Tailscale, NFS, 서비스 배포까지 관리합니다.
 
 ---
 
@@ -32,12 +32,13 @@ ansible-galaxy collection install community.docker
 ## Quick Start
 
 ```bash
-# 전체 실행 (host_specific 로드 → wireguard → nfs → deploy)
+# 전체 실행 (host_specific 로드 → common → wireguard → nfs → tailscale)
 ansible-playbook site.yml
 
 # 태그로 나눠서 실행
 ansible-playbook site.yml --tags wireguard
 ansible-playbook site.yml --tags nfs
+ansible-playbook site.yml --tags tailscale
 ansible-playbook site.yml --tags deploy
 
 # 특정 노드만
@@ -54,13 +55,14 @@ ansible-playbook site.yml --limit n4000,n4200
 .
 ├── ansible.cfg          # inventory, vault_password_file, SSH
 ├── inventory.ini        # oci_nodes, home_nodes, tmp_nodes
-├── site.yml             # 메인 플레이북 (wireguard → nfs → deploy)
+├── site.yml             # 메인 플레이북 (common → wireguard → nfs → tailscale)
 ├── group_vars/
-│   ├── all.yml          # 공통 변수 (경로, VPN 대역, NFS 서버 IP)
+│   ├── all.yml          # 공통 변수 (ts_nfs_*, ts_*)
 │   └── secrets.yml      # 🔐 Vault 암호화 (비밀/키/호스트별 설정)
 ├── playbooks/           # cleanup, docker_stop_all, docker_start_all
 ├── roles/
 │   ├── wireguard/       # VPN 구축 (키 생성, wg0.conf, resolv)
+│   ├── tailscale/       # 백업 관리망 + Exit Node 광고
 │   ├── nfs_setup/       # NFS 서버(n4000) / 클라이언트
 │   ├── common/          # base, docker, security + wg0.conf.j2
 │   ├── deploy_services/ # NFS 동기화(rsync) + docker_compose_v2
@@ -76,7 +78,8 @@ ansible-playbook site.yml --limit n4000,n4200
 | Role | 하는 일 |
 |------|----------|
 | **wireguard** | WireGuard 설치·키 생성·설정, Docker 잠시 중지 후 적용 |
-| **nfs_setup** | n4000 = NFS 서버(exports), 나머지 = NFS 클라이언트(mount/fstab) |
+| **tailscale** | Tailscale 설치/조인, DNS 수락, Exit Node 광고(호스트별) |
+| **nfs_setup** | n4000 = NFS 서버(exports), 나머지 = NFS 클라이언트(멱등 마운트 검증) |
 | **deploy_services** | N4000에서 rsync로 볼륨 동기화 → `docker compose` 로 서비스 기동 |
 | **common** | timezone, ip_forward, rsync, resolv, Docker 등 (site.yml에서 선택 사용) |
 | **cron_cli_to_hub** | NFS/동기화용 cron |
@@ -87,6 +90,7 @@ ansible-playbook site.yml --limit n4000,n4200
 
 - **`group_vars/secrets.yml`** → **전체 파일**이 `Ansible Vault`(AES256)로 암호화되어 있습니다.
 - 안에 들어가는 것: SSH 키 경로, `hub_info`, `all_peers`, **host_specific**(endpoint, public_key, private_key, address, public_interface).
+- Tailscale 인증키는 `vault_ts_auth_key` 사용 (하위호환으로 `vault_tailscale_auth_key` fallback 지원).
 - 복호화는 `ansible.cfg`의 `vault_password_file`(예: `.vault_pass`)로 자동적용됩니다.
 - **`.vault_pass`는 반드시 `.gitignore`에 두고 저장소에 올리지 말 것.**
 
@@ -98,10 +102,10 @@ ansible-playbook site.yml --limit n4000,n4200
 Ansible · Ansible Vault · Inventory(INI) · Tags · group_vars / host_specific
 
 **네트워크·VPN**  
-WireGuard · iptables(MASQUERADE) · resolvectl
+WireGuard · Tailscale(MagicDNS/Exit Node) · iptables(MASQUERADE) · resolvectl
 
 **스토리지**  
-NFS · rsync · Jinja2(wg0.conf, exports)
+NFS(ts_nfs_ 변수 기반) · rsync · Jinja2(wg0.conf, exports)
 
 **컨테이너**  
 Docker · Docker Compose V2 (`community.docker.docker_compose_v2`)

@@ -1,0 +1,35 @@
+---
+# WireGuard remains the primary management network.
+# This role adds Tailscale as a backup access path.
+ts_enabled: true
+
+# Keep secrets out of git. Put vault_ts_auth_key in group_vars/secrets.yml.
+# Backward compatibility: fallback to vault_tailscale_auth_key if needed.
+ts_auth_key: "{{ vault_ts_auth_key | default(vault_tailscale_auth_key | default('')) }}"
+
+# Example: ["tag:homelab", "tag:mgmt-backup"]
+ts_tags: []
+
+ts_hostname: "{{ inventory_hostname }}"
+# Per-host override map example:
+# ts_accept_dns_by_host:
+#   arm: true
+#   n4000: true
+#   n4200: true
+ts_accept_dns_by_host: "{{ tailscale_accept_dns_by_host | default({}) }}"
+ts_accept_dns: "{{ ts_accept_dns_by_host[inventory_hostname] | default(false) }}"
+# Per-host exit node advertise toggle example:
+# ts_advertise_exit_node_by_host:
+#   n4000: true
+ts_advertise_exit_node_by_host: "{{ tailscale_advertise_exit_node_by_host | default({}) }}"
+ts_advertise_exit_node: "{{ ts_advertise_exit_node_by_host[inventory_hostname] | default(false) }}"
+ts_login_server: ""
+ts_extra_args: []
+ts_force_reauth: false
+# Re-apply "tailscale up" on every run so option changes are reflected immediately.
+ts_reapply_on_each_run: true
+
+# apt lock handling
+ts_apt_lock_timeout_seconds: 180
+ts_apt_retries: 2
+ts_apt_retry_delay_seconds: 10

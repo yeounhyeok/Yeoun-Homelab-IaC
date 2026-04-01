@@ -1,0 +1,147 @@
+---
+- name: Validate Tailscale config for backup management path
+  assert:
+    that:
+      - ts_tags is iterable
+      - ts_tags is not string
+      - ts_auth_key | length > 0
+    fail_msg: "Set vault_ts_auth_key (or vault_tailscale_auth_key) and optional ts_tags before applying tailscale role."
+  when: ts_enabled | bool
+
+- name: Validate OS support for tailscale apt repository
+  assert:
+    that:
+      - ansible_facts["os_family"] == "Debian"
+      - ansible_facts["distribution"] in ["Debian", "Ubuntu", "Raspbian"]
+    fail_msg: "This tailscale role currently supports Debian/Ubuntu/Raspbian hosts only."
+  when: ts_enabled | bool
+
+- name: Install Tailscale package and repository dependencies
+  block:
+    - name: Stop background apt services temporarily (avoid dpkg lock contention)
+      systemd:
+        name: "{{ item }}"
+        state: stopped
+      loop:
+        - apt-daily.service
+        - apt-daily-upgrade.service
+        - unattended-upgrades.service
+      failed_when: false
+
+    - name: Stop background apt timers temporarily (avoid immediate restart)
+      systemd:
+        name: "{{ item }}"
+        state: stopped
+      loop:
+        - apt-daily.timer
+        - apt-daily-upgrade.timer
+      failed_when: false
+
+    - name: Install apt prerequisites for Tailscale repository
+      apt:
+        name:
+          - ca-certificates
+          - curl
+          - gnupg
+        state: present
+        update_cache: yes
+        lock_timeout: "{{ ts_apt_lock_timeout_seconds }}"
+      register: ts_apt_prereq
+      until: ts_apt_prereq is succeeded
+      retries: "{{ ts_apt_retries }}"
+      delay: "{{ ts_apt_retry_delay_seconds }}"
+
+    - name: Ensure apt keyrings directory exists
+      file:
+        path: /usr/share/keyrings
+        state: directory
+        mode: "0755"
+
+    - name: Add Tailscale apt repository keyring
+      get_url:
+        url: "https://pkgs.tailscale.com/stable/{{ 'ubuntu' if ansible_facts['distribution'] == 'Ubuntu' else 'debian' }}/{{ ansible_facts['distribution_release'] }}.noarmor.gpg"
+        dest: /usr/share/keyrings/tailscale-archive-keyring.gpg
+        mode: "0644"
+
+    - name: Add Tailscale apt repository list
+      get_url:
+        url: "https://pkgs.tailscale.com/stable/{{ 'ubuntu' if ansible_facts['distribution'] == 'Ubuntu' else 'debian' }}/{{ ansible_facts['distribution_release'] }}.tailscale-keyring.list"
+        dest: /etc/apt/sources.list.d/tailscale.list
+        mode: "0644"
+
+    - name: Install Tailscale package
+      apt:
+        name: tailscale
+        state: present
+        update_cache: yes
+        lock_timeout: "{{ ts_apt_lock_timeout_seconds }}"
+      register: ts_pkg_install
+      until: ts_pkg_install is succeeded
+      retries: "{{ ts_apt_retries }}"
+      delay: "{{ ts_apt_retry_delay_seconds }}"
+  always:
+    - name: Restore background apt timers after package install
+      systemd:
+        name: "{{ item }}"
+        state: started
+      loop:
+        - apt-daily.timer
+        - apt-daily-upgrade.timer
+      failed_when: false
+  become: yes
+  when: ts_enabled | bool
+
+- name: Configure and validate Tailscale backup path
+  block:
+    - name: Ensure tailscaled is enabled and running
+      service:
+        name: tailscaled
+        state: started
+        enabled: yes
+
+    - name: Check current Tailscale status
+      command: tailscale status --json
+      register: ts_status
+      changed_when: false
+      failed_when: false
+
+    - name: Enable kernel forwarding for exit node host
+      sysctl:
+        name: "{{ item.name }}"
+        value: "{{ item.value }}"
+        state: present
+        sysctl_set: true
+        reload: true
+      loop:
+        - name: net.ipv4.ip_forward
+          value: "1"
+        - name: net.ipv6.conf.all.forwarding
+          value: "1"
+      when: ts_advertise_exit_node | bool
+
+    - name: Bring node into tailnet (backup path only)
+      command: >-
+        tailscale up
+        --authkey={{ ts_auth_key }}
+        --hostname={{ ts_hostname }}
+        --accept-dns={{ ts_accept_dns | ternary('true', 'false') }}
+        {% if ts_advertise_exit_node | bool %}--advertise-exit-node{% endif %}
+        {% if ts_tags | length > 0 %}--advertise-tags={{ ts_tags | join(',') }}{% endif %}
+        {% if ts_login_server | length > 0 %}--login-server={{ ts_login_server }}{% endif %}
+        {{ ts_extra_args | join(' ') }}
+      no_log: true
+      register: ts_up
+      changed_when: ts_up.rc == 0
+      when: ts_force_reauth | bool or ts_reapply_on_each_run | bool or ts_status.rc != 0
+
+    - name: Minimal validation - tailscale binary is responsive
+      command: tailscale version
+      changed_when: false
+
+    - name: Minimal validation - node has tailnet IPv4
+      command: tailscale ip -4
+      register: ts_ipv4
+      changed_when: false
+      failed_when: ts_ipv4.rc != 0
+  become: yes
+  when: ts_enabled | bool

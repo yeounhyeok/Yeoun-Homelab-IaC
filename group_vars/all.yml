@@ -1,7 +1,17 @@
 ---
-# 공통 경로 및 네트워크 설정
-real_data_path: "/mnt/usb"
-client_mount_path: "/mnt/nfs"
+# 공통 경로 및 네트워크 설정 (Tailscale 기반 NFS)
+ts_nfs_export_path: "/mnt/usb"
+ts_nfs_client_mount_path: "/mnt/nfs"
 local_service_path: "/home/{{ ansible_user }}/docker_volumes"
-vpn_network: "10.0.1.0/24"
-nfs_server_ip: "10.0.1.10"
+ts_nfs_server_host: "n4000"
+ts_nfs_allowed_cidr: "100.64.0.0/10"
+
+# Tailscale per-host flags (ts_ prefix).
+ts_accept_dns_by_host:
+  arm: true
+  n4000: true
+  n4200: true
+
+# Advertise exit node on selected hosts only.
+ts_advertise_exit_node_by_host:
+  n4000: true

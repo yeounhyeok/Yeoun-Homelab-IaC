@@ -11,12 +11,13 @@
   apt:
     name: nfs-kernel-server
     state: present
-  when: inventory_hostname == 'n4000'
+  when: inventory_hostname == ts_nfs_server_host
+
 - name: "[Client] Install NFS Common package on Worker Nodes"
   apt:
     name: nfs-common
     state: present
-  when: inventory_hostname != 'n4000'
+  when: inventory_hostname != ts_nfs_server_host
 
 # ---------------------------------------------------------
 # [PRE-CHECK & CLEANUP] 구시대의 유물 정리 (중요)
@@ -41,69 +42,98 @@
     name: nfs-kernel-server
     state: started
     enabled: yes
-  when: inventory_hostname == 'n4000'
+  when: inventory_hostname == ts_nfs_server_host
 
 - name: "[n4000] Configure NFS exports"
   template:
     src: ../templates/exports.j2
     dest: /etc/exports
   register: nfs_exports_updated
-  when: inventory_hostname == 'n4000'
+  when: inventory_hostname == ts_nfs_server_host
 
 - name: "[n4000] Apply NFS exports"
   command: exportfs -ra
-  when: nfs_exports_updated.changed and inventory_hostname == 'n4000'
+  when: nfs_exports_updated.changed and inventory_hostname == ts_nfs_server_host
 
 # ---------------------------------------------------------
 # [CLIENT] 새로운 표준 경로로 마운트 (Worker Nodes)
 # ---------------------------------------------------------
-- name: "[Client] Collect currently mounted NFS paths"
-  command: findmnt -rn -t nfs,nfs4 -o TARGET
-  register: mounted_nfs_targets
+- name: "[Client] Set expected NFS mount source"
+  set_fact:
+    ts_nfs_mount_src: "{{ ts_nfs_server_host }}:{{ ts_nfs_export_path }}"
+  when: inventory_hostname != ts_nfs_server_host
+
+- name: "[Client] Inspect current target mount"
+  command: findmnt -rn -T "{{ ts_nfs_client_mount_path }}" -o SOURCE,FSTYPE,TARGET
+  register: target_mount_current
   changed_when: false
   failed_when: false
-  when: inventory_hostname != 'n4000'
+  when: inventory_hostname != ts_nfs_server_host
 
-- name: "[Client] Set mounted NFS path list"
+- name: "[Client] Check whether target mount already matches desired NFS"
   set_fact:
-    mounted_nfs_paths: "{{ mounted_nfs_targets.stdout_lines | default([]) }}"
-  when: inventory_hostname != 'n4000'
+    ts_nfs_target_already_ok: >-
+      {{
+        target_mount_current.rc == 0
+        and (ts_nfs_mount_src in target_mount_current.stdout)
+        and (ts_nfs_client_mount_path in target_mount_current.stdout)
+      }}
+  when: inventory_hostname != ts_nfs_server_host
 
-- name: "[Client] Unmount existing NFS mounts"
+- name: "[Client] Unmount target path only when mounted with different source"
+  mount:
+    path: "{{ ts_nfs_client_mount_path }}"
+    state: unmounted
+  failed_when: false
+  when:
+    - inventory_hostname != ts_nfs_server_host
+    - target_mount_current.rc == 0
+    - not ts_nfs_target_already_ok | bool
+
+- name: "[Client] Fallback lazy unmount on target path when busy"
   shell: |
-    if mountpoint -q "{{ item }}"; then
-      umount "{{ item }}" || umount -l "{{ item }}"
+    if mountpoint -q "{{ ts_nfs_client_mount_path }}"; then
+      umount -l "{{ ts_nfs_client_mount_path }}"
     fi
   args:
     executable: /bin/bash
-  loop: "{{ mounted_nfs_paths | default([]) }}"
+  changed_when: false
   failed_when: false
-  changed_when: true
   when:
-    - inventory_hostname != 'n4000'
-    - item != client_mount_path
-
-- name: "[Client] Remove existing NFS entries from fstab"
-  lineinfile:
-    path: /etc/fstab
-    regexp: '^[^#].*\s+nfs[0-9]*\s+.*$'
-    state: absent
-  when: inventory_hostname != 'n4000'
+    - inventory_hostname != ts_nfs_server_host
+    - target_mount_current.rc == 0
+    - not ts_nfs_target_already_ok | bool
 
 - name: "[Client] Ensure NEW mount point directory exists"
   file:
-    path: "{{ client_mount_path }}"  # 표준 경로로 통일
+    path: "{{ ts_nfs_client_mount_path }}" 
     state: directory
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: '0775'
-  when: inventory_hostname != 'n4000'
+  when: inventory_hostname != ts_nfs_server_host
 
 - name: "[Client] Mount NFS to NEW reliable path"
   mount:
-    path: "{{ client_mount_path }}"
-    src: "{{ nfs_server_ip }}:{{ real_data_path }}"
+    path: "{{ ts_nfs_client_mount_path }}"
+    src: "{{ ts_nfs_mount_src }}"
     fstype: nfs
     opts: "defaults,_netdev,nofail,soft,timeo=14,retrans=2"
     state: mounted
-  when: inventory_hostname != 'n4000'
+  when: inventory_hostname != ts_nfs_server_host
+
+- name: "[Client] Verify NFS mount is active after setup"
+  command: findmnt -rn -T "{{ ts_nfs_client_mount_path }}" -o SOURCE,FSTYPE,TARGET
+  register: nfs_mount_after
+  changed_when: false
+  when: inventory_hostname != ts_nfs_server_host
+
+- name: "[Client] Assert NFS mount source/path after setup"
+  assert:
+    that:
+      - nfs_mount_after.rc == 0
+      - "'nfs' in nfs_mount_after.stdout"
+      - "ts_nfs_mount_src in nfs_mount_after.stdout"
+      - "ts_nfs_client_mount_path in nfs_mount_after.stdout"
+    fail_msg: "NFS mount verification failed on {{ inventory_hostname }} -> {{ nfs_mount_after.stdout | default('no output') }}"
+  when: inventory_hostname != ts_nfs_server_host

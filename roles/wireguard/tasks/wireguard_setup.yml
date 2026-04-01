@@ -74,7 +74,7 @@
 
 - name: Generate WireGuard configuration from template
   template:
-    src: "{{ playbook_dir }}/roles/common/templates/wg0.conf.j2"
+    src: "{{ playbook_dir }}/roles/wireguard/templates/wg0.conf.j2"
     dest: /etc/wireguard/wg0.conf
     owner: root
     group: root
