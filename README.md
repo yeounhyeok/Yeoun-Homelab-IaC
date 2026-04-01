@@ -1,4 +1,4 @@
-# 🏠 Home Lab Ansible
+# 🏠 Home Lab IaC
 
 **WireGuard VPN + NFS + Docker Compose** 로 묶은 멀티노드 홈 인프라를 한 번에 굴리는 Ansible 워크스페이스.
 
@@ -9,7 +9,6 @@
 | 구분 | 노드 | 역할 |
 |------|------|------|
 | **OCI** | `arm` | 컴퓨팅 (Authentik, Code-Server, Jellyfin, NPM…) |
-| ~~**OCI**~~ | ~~`vps`~~ | ~~게이트웨이 (Legacy)~~ *(제거됨: 성능/회선 이슈)* |
 | **Home** | `n4000` | **Hub** — NFS 서버, WireGuard 허브, 데이터(Nextcloud, Immich, Syncthing…) |
 | **Home** | `n4200` | 엣지 (Ghost, Homepage, Home Assistant) |
 
