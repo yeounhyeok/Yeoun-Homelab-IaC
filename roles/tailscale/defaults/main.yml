@@ -16,13 +16,14 @@ ts_hostname: "{{ inventory_hostname }}"
 #   arm: true
 #   n4000: true
 #   n4200: true
-ts_accept_dns_by_host: "{{ tailscale_accept_dns_by_host | default({}) }}"
-ts_accept_dns: "{{ ts_accept_dns_by_host[inventory_hostname] | default(false) }}"
+ts_accept_dns_default: true
+ts_accept_dns_by_host: {}
+ts_accept_dns: "{{ (ts_accept_dns_by_host | default({})).get(inventory_hostname, ts_accept_dns_default) | bool }}"
 # Per-host exit node advertise toggle example:
 # ts_advertise_exit_node_by_host:
 #   n4000: true
-ts_advertise_exit_node_by_host: "{{ tailscale_advertise_exit_node_by_host | default({}) }}"
-ts_advertise_exit_node: "{{ ts_advertise_exit_node_by_host[inventory_hostname] | default(false) }}"
+ts_advertise_exit_node_by_host: {}
+ts_advertise_exit_node: "{{ (ts_advertise_exit_node_by_host | default({})).get(inventory_hostname, false) | bool }}"
 ts_login_server: ""
 ts_extra_args: []
 ts_force_reauth: false

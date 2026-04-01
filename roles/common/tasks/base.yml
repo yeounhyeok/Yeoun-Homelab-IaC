@@ -54,6 +54,10 @@
     state: present
     update_cache: no
 
+- name: Resolve DNS policy for current host
+  set_fact:
+    ts_dns_enabled_on_host: "{{ (ts_accept_dns_by_host | default({})).get(inventory_hostname, ts_accept_dns_default | default(true)) | bool }}"
+
 # --- [분기점] AGH를 돌리는 서버(N4000)만 특별 관리 ---
 - name: Disable systemd-resolved only on AGH host (N4000)
   service:
@@ -62,7 +66,7 @@
     enabled: no
   when:
     - inventory_hostname == 'n4000'
-    - not (ts_accept_dns_by_host[inventory_hostname] | default(false))
+    - not ts_dns_enabled_on_host
 
 - name: Setup static resolv.conf for AGH host
   copy:
@@ -73,7 +77,7 @@
     force: yes
   when:
     - inventory_hostname == 'n4000'
-    - not (ts_accept_dns_by_host[inventory_hostname] | default(false))
+    - not ts_dns_enabled_on_host
 
 # --- [분기점] AGH를 안 돌리는 나머지 서버들 설정 ---
 - name: Fix systemd-resolved DNS for other hosts
@@ -83,7 +87,7 @@
     line: 'DNS=8.8.8.8 1.1.1.1 10.0.1.10'
   when:
     - inventory_hostname != 'n4000'
-    - not (ts_accept_dns_by_host[inventory_hostname] | default(false))
+    - not ts_dns_enabled_on_host
 
 - name: Ensure /etc/resolv.conf path is absent before linking (other hosts)
   file:
@@ -91,7 +95,7 @@
     state: absent
   when:
     - inventory_hostname != 'n4000'
-    - not (ts_accept_dns_by_host[inventory_hostname] | default(false))
+    - not ts_dns_enabled_on_host
 
 - name: Ensure Stub Resolver Link for other hosts
   file:
@@ -101,7 +105,7 @@
     force: yes
   when:
     - inventory_hostname != 'n4000'
-    - not (ts_accept_dns_by_host[inventory_hostname] | default(false))
+    - not ts_dns_enabled_on_host
 
 - name: Restart systemd-resolved for other hosts
   service:
@@ -110,4 +114,4 @@
     enabled: yes
   when:
     - inventory_hostname != 'n4000'
-    - not (ts_accept_dns_by_host[inventory_hostname] | default(false))
+    - not ts_dns_enabled_on_host

@@ -7,8 +7,10 @@ ts_nfs_server_host: "n4000"
 ts_nfs_allowed_cidr: "100.64.0.0/10"
 
 # Tailscale per-host flags (ts_ prefix).
+ts_accept_dns_default: true
 ts_accept_dns_by_host:
   arm: true
+  dev-ec2: true
   n4000: true
   n4200: true
 
