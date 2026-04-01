@@ -35,8 +35,8 @@
   become: yes
   name: "NFS setting -> shares docker_volumes from n4000"
   vars:
-    vpn_network: "10.0.1.0/24"
-    nfs_server_ip: "10.0.1.10"
+    wg_vpn_network_cidr: "10.0.1.0/24"
+    wg_nfs_server_ip: "10.0.1.10"
   roles:
     - nfs_setup
   tags: nfs
@@ -53,7 +53,7 @@
 ## 1. 🐢 N4000: Data Warehouse hub (HDD/유선)
 #  become: yes
 #  vars:
-#    client_mount_path: "/mnt/usb/docker_volumes"
+#    wg_nfs_client_mount_path: "/mnt/usb/docker_volumes"
 #    target_services:
 #      - nextcloud
 #      - immich-app

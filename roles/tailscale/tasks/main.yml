@@ -105,12 +105,27 @@
       changed_when: false
       failed_when: false
 
+    - name: Enable kernel forwarding for exit node host
+      sysctl:
+        name: "{{ item.name }}"
+        value: "{{ item.value }}"
+        state: present
+        sysctl_set: true
+        reload: true
+      loop:
+        - name: net.ipv4.ip_forward
+          value: "1"
+        - name: net.ipv6.conf.all.forwarding
+          value: "1"
+      when: tailscale_advertise_exit_node | bool
+
     - name: Bring node into tailnet (backup path only)
       command: >-
         tailscale up
         --authkey={{ tailscale_auth_key }}
         --hostname={{ tailscale_hostname }}
         --accept-dns={{ tailscale_accept_dns | ternary('true', 'false') }}
+        {% if tailscale_advertise_exit_node | bool %}--advertise-exit-node{% endif %}
         {% if tailscale_tags | length > 0 %}--advertise-tags={{ tailscale_tags | join(',') }}{% endif %}
         {% if tailscale_login_server | length > 0 %}--login-server={{ tailscale_login_server }}{% endif %}
         {{ tailscale_extra_args | join(' ') }}

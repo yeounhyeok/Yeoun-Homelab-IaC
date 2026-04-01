@@ -81,7 +81,7 @@
   changed_when: true
   when:
     - inventory_hostname != 'n4000'
-    - item != client_mount_path
+    - item != wg_nfs_client_mount_path
 
 - name: "[Client] Remove existing NFS entries from fstab"
   lineinfile:
@@ -92,7 +92,7 @@
 
 - name: "[Client] Ensure NEW mount point directory exists"
   file:
-    path: "{{ client_mount_path }}"  # 표준 경로로 통일
+    path: "{{ wg_nfs_client_mount_path }}"  # 표준 경로로 통일
     state: directory
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
@@ -101,8 +101,8 @@
 
 - name: "[Client] Mount NFS to NEW reliable path"
   mount:
-    path: "{{ client_mount_path }}"
-    src: "{{ nfs_server_ip }}:{{ real_data_path }}"
+    path: "{{ wg_nfs_client_mount_path }}"
+    src: "{{ wg_nfs_server_ip }}:{{ wg_nfs_export_path }}"
     fstype: nfs
     opts: "defaults,_netdev,nofail,soft,timeo=14,retrans=2"
     state: mounted

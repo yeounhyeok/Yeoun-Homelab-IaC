@@ -20,6 +20,8 @@ tailscale_accept_dns_by_host:
   arm: true
   n4000: true
   n4200: true
+tailscale_advertise_exit_node_by_host:
+  n4000: true
 tailscale_force_reauth: false
 tailscale_reapply_on_each_run: true
 tailscale_apt_lock_timeout_seconds: 180

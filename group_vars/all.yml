@@ -1,13 +1,18 @@
 ---
 # 공통 경로 및 네트워크 설정
-real_data_path: "/mnt/usb"
-client_mount_path: "/mnt/nfs"
+# WireGuard 기반 NFS 경로/네트워크
+wg_nfs_export_path: "/mnt/usb"
+wg_nfs_client_mount_path: "/mnt/nfs"
 local_service_path: "/home/{{ ansible_user }}/docker_volumes"
-vpn_network: "10.0.1.0/24"
-nfs_server_ip: "10.0.1.10"
+wg_vpn_network_cidr: "10.0.1.0/24"
+wg_nfs_server_ip: "10.0.1.10"
 
 # Enable Tailscale DNS acceptance per node so MagicDNS names resolve via system resolver.
 tailscale_accept_dns_by_host:
   arm: true
   n4000: true
   n4200: true
+
+# Advertise exit node on selected hosts only.
+tailscale_advertise_exit_node_by_host:
+  n4000: true

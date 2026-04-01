@@ -17,6 +17,11 @@ tailscale_hostname: "{{ inventory_hostname }}"
 #   n4200: true
 tailscale_accept_dns_by_host: {}
 tailscale_accept_dns: "{{ tailscale_accept_dns_by_host[inventory_hostname] | default(false) }}"
+# Per-host exit node advertise toggle example:
+# tailscale_advertise_exit_node_by_host:
+#   n4000: true
+tailscale_advertise_exit_node_by_host: {}
+tailscale_advertise_exit_node: "{{ tailscale_advertise_exit_node_by_host[inventory_hostname] | default(false) }}"
 tailscale_login_server: ""
 tailscale_extra_args: []
 tailscale_force_reauth: false
