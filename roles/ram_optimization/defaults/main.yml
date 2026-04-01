@@ -1,0 +1,12 @@
+---
+# zram swap size as percentage of total RAM
+zram_percent: 50
+
+# higher value means zram is preferred over disk swap
+zram_priority: 100
+
+# kernel swap tendency (0-200)
+vm_swappiness: 100
+
+# if true, fail play when zramswap service cannot start
+zram_fail_on_service_error: false

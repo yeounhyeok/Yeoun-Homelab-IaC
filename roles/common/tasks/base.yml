@@ -60,7 +60,9 @@
     name: systemd-resolved
     state: stopped
     enabled: no
-  when: inventory_hostname == 'n4000'
+  when:
+    - inventory_hostname == 'n4000'
+    - not (ts_accept_dns_by_host[inventory_hostname] | default(false))
 
 - name: Setup static resolv.conf for AGH host
   copy:
@@ -69,7 +71,9 @@
       nameserver 127.0.0.1
       nameserver 8.8.8.8
     force: yes
-  when: inventory_hostname == 'n4000'
+  when:
+    - inventory_hostname == 'n4000'
+    - not (ts_accept_dns_by_host[inventory_hostname] | default(false))
 
 # --- [분기점] AGH를 안 돌리는 나머지 서버들 설정 ---
 - name: Fix systemd-resolved DNS for other hosts
@@ -77,7 +81,17 @@
     path: /etc/systemd/resolved.conf
     regexp: '^#?DNS='
     line: 'DNS=8.8.8.8 1.1.1.1 10.0.1.10'
-  when: inventory_hostname != 'n4000'
+  when:
+    - inventory_hostname != 'n4000'
+    - not (ts_accept_dns_by_host[inventory_hostname] | default(false))
+
+- name: Ensure /etc/resolv.conf path is absent before linking (other hosts)
+  file:
+    path: /etc/resolv.conf
+    state: absent
+  when:
+    - inventory_hostname != 'n4000'
+    - not (ts_accept_dns_by_host[inventory_hostname] | default(false))
 
 - name: Ensure Stub Resolver Link for other hosts
   file:
@@ -85,11 +99,15 @@
     dest: /etc/resolv.conf
     state: link
     force: yes
-  when: inventory_hostname != 'n4000'
+  when:
+    - inventory_hostname != 'n4000'
+    - not (ts_accept_dns_by_host[inventory_hostname] | default(false))
 
 - name: Restart systemd-resolved for other hosts
   service:
     name: systemd-resolved
     state: restarted
     enabled: yes
-  when: inventory_hostname != 'n4000'
+  when:
+    - inventory_hostname != 'n4000'
+    - not (ts_accept_dns_by_host[inventory_hostname] | default(false))

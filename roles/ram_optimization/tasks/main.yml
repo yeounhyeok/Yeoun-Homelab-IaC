@@ -1,35 +1,95 @@
 ---
-- name: Install zram-tools
-  apt:
-    name: zram-tools
-    state: present
-    update_cache: yes
+- name: Detect zram control interface
+  stat:
+    path: /sys/class/zram-control
+  register: zram_control
 
-- name: Configure zram swap
-  copy:
-    dest: /etc/default/zramswap
-    mode: "0644"
-    content: |
-      ALGO=zstd
-      PERCENT={{ zram_percent }}
-      PRIORITY={{ zram_priority }}
-  register: zram_config
+- name: Try loading zram kernel module
+  command: modprobe zram
+  register: zram_modprobe
+  changed_when: false
+  failed_when: false
 
-- name: Configure vm.swappiness
-  sysctl:
-    name: vm.swappiness
-    value: "{{ vm_swappiness }}"
-    state: present
-    sysctl_set: true
-    reload: true
+- name: Set zram support fact
+  set_fact:
+    zram_supported: "{{ zram_control.stat.exists or zram_modprobe.rc == 0 }}"
 
-- name: Enable zramswap service
-  systemd:
-    name: zramswap.service
-    enabled: yes
+- name: Configure zram on supported hosts
+  when: zram_supported | bool
+  block:
+    - name: Install zram-tools
+      apt:
+        name: zram-tools
+        state: present
+        update_cache: yes
 
-- name: Restart zramswap service
-  systemd:
-    name: zramswap.service
-    state: restarted
-  when: zram_config.changed
+    - name: Configure zram swap
+      copy:
+        dest: /etc/default/zramswap
+        mode: "0644"
+        content: |
+          ALGO=zstd
+          PERCENT={{ zram_percent }}
+          PRIORITY={{ zram_priority }}
+      register: zram_config
+
+    - name: Configure vm.swappiness
+      sysctl:
+        name: vm.swappiness
+        value: "{{ vm_swappiness }}"
+        state: present
+        sysctl_set: true
+        reload: true
+
+    - name: Enable zramswap service
+      systemd:
+        name: zramswap.service
+        enabled: yes
+
+    - name: Restart zramswap service when config changed
+      systemd:
+        name: zramswap.service
+        state: restarted
+      register: zramswap_restart
+      failed_when: false
+      when: zram_config.changed
+
+    - name: Collect zramswap status when restart failed
+      command: systemctl --no-pager -l status zramswap.service
+      register: zramswap_status
+      changed_when: false
+      failed_when: false
+      when:
+        - zram_config.changed
+        - zramswap_restart is defined
+        - zramswap_restart.failed | default(false)
+
+    - name: Collect zramswap journal when restart failed
+      command: journalctl -xeu zramswap.service --no-pager -n 80
+      register: zramswap_journal
+      changed_when: false
+      failed_when: false
+      when:
+        - zram_config.changed
+        - zramswap_restart is defined
+        - zramswap_restart.failed | default(false)
+
+    - name: Fail when zram service fails and strict mode is enabled
+      fail:
+        msg: |
+          zramswap.service restart failed.
+          systemctl status:
+          {{ zramswap_status.stdout | default('N/A') }}
+
+          journalctl:
+          {{ zramswap_journal.stdout | default('N/A') }}
+      when:
+        - zram_fail_on_service_error | bool
+        - zram_config.changed
+        - zramswap_restart is defined
+        - zramswap_restart.failed | default(false)
+
+- name: Skip zram optimization on unsupported kernel
+  debug:
+    msg: "zram kernel support not available on {{ inventory_hostname }}; skipping zram optimization."
+  when: not zram_supported | bool
