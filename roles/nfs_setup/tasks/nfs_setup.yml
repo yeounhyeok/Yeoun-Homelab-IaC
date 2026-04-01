@@ -12,6 +12,7 @@
     name: nfs-kernel-server
     state: present
   when: inventory_hostname == ts_nfs_server_host
+
 - name: "[Client] Install NFS Common package on Worker Nodes"
   apt:
     name: nfs-common
@@ -57,62 +58,55 @@
 # ---------------------------------------------------------
 # [CLIENT] 새로운 표준 경로로 마운트 (Worker Nodes)
 # ---------------------------------------------------------
-- name: "[Client] Collect currently mounted NFS paths"
-  command: findmnt -rn -t nfs,nfs4 -o TARGET
-  register: mounted_nfs_targets
+- name: "[Client] Set expected NFS mount source"
+  set_fact:
+    ts_nfs_mount_src: "{{ ts_nfs_server_host }}:{{ ts_nfs_export_path }}"
+  when: inventory_hostname != ts_nfs_server_host
+
+- name: "[Client] Inspect current target mount"
+  command: findmnt -rn -T "{{ ts_nfs_client_mount_path }}" -o SOURCE,FSTYPE,TARGET
+  register: target_mount_current
   changed_when: false
   failed_when: false
   when: inventory_hostname != ts_nfs_server_host
 
-- name: "[Client] Set mounted NFS path list"
+- name: "[Client] Check whether target mount already matches desired NFS"
   set_fact:
-    mounted_nfs_paths: "{{ mounted_nfs_targets.stdout_lines | default([]) }}"
+    ts_nfs_target_already_ok: >-
+      {{
+        target_mount_current.rc == 0
+        and (ts_nfs_mount_src in target_mount_current.stdout)
+        and (ts_nfs_client_mount_path in target_mount_current.stdout)
+      }}
   when: inventory_hostname != ts_nfs_server_host
 
-- name: "[Client] Unmount existing NFS mounts (safe reset)"
+- name: "[Client] Unmount target path only when mounted with different source"
   mount:
-    path: "{{ item }}"
+    path: "{{ ts_nfs_client_mount_path }}"
     state: unmounted
-  loop: "{{ mounted_nfs_paths | default([]) }}"
   failed_when: false
-  when: inventory_hostname != ts_nfs_server_host
+  when:
+    - inventory_hostname != ts_nfs_server_host
+    - target_mount_current.rc == 0
+    - not ts_nfs_target_already_ok | bool
 
-- name: "[Client] Fallback lazy unmount for busy NFS mounts"
+- name: "[Client] Fallback lazy unmount on target path when busy"
   shell: |
-    if mountpoint -q "{{ item }}"; then
-      umount -l "{{ item }}"
+    if mountpoint -q "{{ ts_nfs_client_mount_path }}"; then
+      umount -l "{{ ts_nfs_client_mount_path }}"
     fi
   args:
     executable: /bin/bash
-  loop: "{{ mounted_nfs_paths | default([]) }}"
-  failed_when: false
-  changed_when: false
-  when: inventory_hostname != ts_nfs_server_host
-
-- name: "[Client] Verify target mount path is unmounted before reconfigure"
-  command: findmnt -rn -T "{{ ts_nfs_client_mount_path }}"
-  register: target_mount_before
   changed_when: false
   failed_when: false
-  when: inventory_hostname != ts_nfs_server_host
-
-- name: "[Client] Assert target path is cleanly unmounted"
-  assert:
-    that:
-      - target_mount_before.rc != 0
-    fail_msg: "Target mount path is still mounted before reset: {{ ts_nfs_client_mount_path }}"
-  when: inventory_hostname != ts_nfs_server_host
-
-- name: "[Client] Remove existing NFS entries from fstab"
-  lineinfile:
-    path: /etc/fstab
-    regexp: '^[^#].*\s+nfs[0-9]*\s+.*$'
-    state: absent
-  when: inventory_hostname != ts_nfs_server_host
+  when:
+    - inventory_hostname != ts_nfs_server_host
+    - target_mount_current.rc == 0
+    - not ts_nfs_target_already_ok | bool
 
 - name: "[Client] Ensure NEW mount point directory exists"
   file:
-    path: "{{ ts_nfs_client_mount_path }}"  # 표준 경로로 통일
+    path: "{{ ts_nfs_client_mount_path }}" 
     state: directory
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
@@ -122,7 +116,7 @@
 - name: "[Client] Mount NFS to NEW reliable path"
   mount:
     path: "{{ ts_nfs_client_mount_path }}"
-    src: "{{ ts_nfs_server_host }}:{{ ts_nfs_export_path }}"
+    src: "{{ ts_nfs_mount_src }}"
     fstype: nfs
     opts: "defaults,_netdev,nofail,soft,timeo=14,retrans=2"
     state: mounted
@@ -139,6 +133,7 @@
     that:
       - nfs_mount_after.rc == 0
       - "'nfs' in nfs_mount_after.stdout"
+      - "ts_nfs_mount_src in nfs_mount_after.stdout"
       - "ts_nfs_client_mount_path in nfs_mount_after.stdout"
     fail_msg: "NFS mount verification failed on {{ inventory_hostname }} -> {{ nfs_mount_after.stdout | default('no output') }}"
   when: inventory_hostname != ts_nfs_server_host
