@@ -9,7 +9,8 @@
 | 구분 | 노드 | 역할 |
 |------|------|------|
 | **OCI** | `arm` | 컴퓨팅 (Authentik, Code-Server, Jellyfin, NPM…) |
-| **Home** | `n4000` | **Hub** — NFS 서버, WireGuard 허브, Tailscale Exit Node |
+| **AWS** | `dev-ec2` | 개발 staging 서버 |
+| **Home** | `n4000` | **Data Hub** — NFS 서버, WireGuard 허브, Tailscale Exit Node |
 | **Home** | `n4200` | 엣지 (Ghost, Homepage, Home Assistant) |
 
 → **site.yml**로 네트워크/WireGuard, Tailscale, NFS, 서비스 배포까지 관리합니다.
