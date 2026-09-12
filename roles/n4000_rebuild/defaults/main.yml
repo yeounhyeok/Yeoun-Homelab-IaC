@@ -23,7 +23,10 @@ n4000_data_disk_uuid: ""
 n4000_data_mount_path: /mnt/usb
 n4000_data_mount_options: "defaults,nofail,x-systemd.device-timeout=15"
 
-# Named Docker volumes cannot be trusted as a portable backup format. Restore
+# Docker is deliberately started by compose_restore after storage/artifact
+# preflight, not during the baseline phase.
+n4000_start_docker: false
+
 # application-native dumps instead (Postgres/SQLite exports) and recreate volumes.
 n4000_required_commands:
   - docker

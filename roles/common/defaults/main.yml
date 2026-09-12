@@ -7,6 +7,10 @@ docker_daemon_config:
     max-size: 10m
     max-file: '3'
 
+# Baseline callers may install Docker without starting it until storage and
+# restore preflights have passed.
+docker_service_manage: true
+
 # SSH is key-based but PAM remains enabled so a future MFA/keyboard-interactive
 # policy is not silently disabled by the baseline.
 ssh_password_authentication: false

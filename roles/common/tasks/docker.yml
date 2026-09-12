@@ -86,6 +86,7 @@
     name: docker
     state: started
     enabled: true
+  when: docker_service_manage | bool
 
 - name: Add the Ansible user to the Docker group
   ansible.builtin.user:

@@ -1,6 +1,33 @@
 ---
 compose_restore_service_root: "/home/{{ ansible_user }}/docker_volumes"
 compose_restore_services: []
+# Repository-enforced project IDs. Compose files and secrets remain external
+# artifacts, but an operator cannot select arbitrary paths at restore time.
+compose_restore_approved_services:
+  - adguardhome
+  - cloudflared
+  - immich-app
+  - jellyfin
+  - moa-monitoring
+  - navidrome
+  - nextcloud
+  - nginx-proxy-manager
+  - obsidian-mcp
+  - obsidian-mcp-hsshin
+  - obsidian-mcp-vilab
+  - syncthing
+  - vaultwarden
+compose_restore_data_disk_services:
+  - immich-app
+  - jellyfin
+  - navidrome
+  - nextcloud
+  - obsidian-mcp
+  - obsidian-mcp-hsshin
+  - obsidian-mcp-vilab
+  - syncthing
+compose_restore_data_mount_path: /mnt/usb
+compose_restore_data_disk_uuid: "{{ n4000_data_disk_uuid | default('') }}"
 compose_restore_pull: missing
 # Do not remove containers outside the explicitly restored compose definition.
 compose_restore_remove_orphans: false

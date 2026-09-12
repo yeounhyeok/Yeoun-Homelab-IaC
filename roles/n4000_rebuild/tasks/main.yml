@@ -51,11 +51,24 @@
     mode: "0750"
   loop: "{{ n4000_service_directories }}"
 
+- name: Discover Docker service state before restore preparation
+  ansible.builtin.service_facts:
+
+- name: Keep Docker stopped during baseline-only rebuild
+  ansible.builtin.systemd:
+    name: docker
+    state: stopped
+    enabled: false
+  when:
+    - not n4000_start_docker | bool
+    - "'docker.service' in ansible_facts.services"
+
 - name: Ensure Docker starts after a clean host bootstrap
   ansible.builtin.systemd:
     name: docker
     state: started
     enabled: true
+  when: n4000_start_docker | bool
 
 - name: Verify required baseline commands
   ansible.builtin.command: "{{ item }} --version"
@@ -69,7 +82,9 @@
 
 - name: Verify Docker daemon responds before any state restore
   ansible.builtin.command: docker info
+  register: n4000_docker_info
   changed_when: false
+  when: n4000_start_docker | bool
 
 - name: Verify data disk mount when explicitly requested
   ansible.builtin.command: "findmnt -rn -T {{ n4000_data_mount_path }} -o SOURCE,FSTYPE,TARGET"

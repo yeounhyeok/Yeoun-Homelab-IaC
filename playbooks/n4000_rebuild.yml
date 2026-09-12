@@ -7,6 +7,8 @@
   gather_facts: true
   vars:
     n4000_mount_data_disk: false
+    n4000_start_docker: false
+    docker_service_manage: false
   pre_tasks:
     - name: Refuse a non-n4000 target
       ansible.builtin.assert:

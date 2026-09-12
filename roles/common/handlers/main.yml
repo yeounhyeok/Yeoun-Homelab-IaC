@@ -4,6 +4,7 @@
     name: docker
     state: restarted
     daemon_reload: true
+  when: docker_service_manage | bool
 
 - name: Restart SSH after policy changes
   ansible.builtin.systemd:

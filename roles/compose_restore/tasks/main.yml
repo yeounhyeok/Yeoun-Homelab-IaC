@@ -9,6 +9,60 @@
       Refusing to start services without compose_restore_services. Restore state
       first, then pass an explicit service list.
 
+- name: Reject service IDs outside the repository allow-list
+  ansible.builtin.assert:
+    that:
+      - item is match('^[a-z0-9][a-z0-9_-]*$')
+      - item in compose_restore_approved_services
+    fail_msg: >-
+      Refusing unapproved compose project ID {{ item }}. Use one of the
+      repository-defined compose_restore_approved_services values.
+  loop: "{{ compose_restore_services }}"
+  loop_control:
+    label: "{{ item }}"
+
+- name: Determine whether the restore needs the external data disk
+  ansible.builtin.set_fact:
+    compose_restore_data_disk_selection: >-
+      {{ compose_restore_services | intersect(compose_restore_data_disk_services) }}
+
+- name: Require an approved external-disk UUID for data-backed services
+  ansible.builtin.assert:
+    that:
+      - compose_restore_data_disk_uuid | length > 0
+      - compose_restore_data_disk_uuid != 'CHANGE_ME_AFTER_FRESH_OS_VERIFICATION'
+    fail_msg: >-
+      Selected services require {{ compose_restore_data_mount_path }}, but no
+      verified external-disk UUID was supplied.
+  when: compose_restore_data_disk_selection | length > 0
+
+- name: Verify the exact external data-disk mount before Compose can create paths
+  ansible.builtin.command:
+    argv:
+      - findmnt
+      - -rn
+      - -M
+      - "{{ compose_restore_data_mount_path }}"
+      - -o
+      - SOURCE,FSTYPE,TARGET,UUID
+  register: compose_restore_mount_check
+  changed_when: false
+  failed_when: false
+  when: compose_restore_data_disk_selection | length > 0
+
+- name: Reject an absent or wrong external data-disk mount
+  ansible.builtin.assert:
+    that:
+      - compose_restore_mount_check.rc == 0
+      - "'ext4' in compose_restore_mount_check.stdout"
+      - compose_restore_data_mount_path in compose_restore_mount_check.stdout
+      - compose_restore_data_disk_uuid in compose_restore_mount_check.stdout
+    fail_msg: >-
+      Refusing restore: {{ compose_restore_data_mount_path }} is not mounted
+      from the approved ext4 UUID. Do not allow Compose to create a fallback
+      directory on the root filesystem.
+  when: compose_restore_data_disk_selection | length > 0
+
 - name: Find a compose manifest in every selected project
   ansible.builtin.find:
     paths: "{{ compose_restore_service_root }}/{{ item }}"
@@ -25,13 +79,35 @@
 
 - name: Stop before an incomplete restore can start services
   ansible.builtin.assert:
-    that: item.matched | int > 0
+    that:
+      - item.matched | int == 1
     fail_msg: >-
-      Missing compose manifest in restored project:
+      Expected exactly one compose manifest in restored project:
       {{ compose_restore_service_root }}/{{ item.item }}
   loop: "{{ compose_restore_manifests.results }}"
   loop_control:
     label: "{{ item.item }}"
+
+- name: Validate every restored Compose project without starting it
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - -f
+      - "{{ item.files[0].path }}"
+      - config
+      - --quiet
+  changed_when: false
+  no_log: true
+  loop: "{{ compose_restore_manifests.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Start Docker only after restore preflight passes
+  ansible.builtin.systemd:
+    name: docker
+    state: started
+    enabled: true
 
 - name: Start explicitly restored compose projects
   community.docker.docker_compose_v2:
