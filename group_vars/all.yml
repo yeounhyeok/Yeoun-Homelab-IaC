@@ -1,19 +1,30 @@
 ---
-# 공통 경로 및 네트워크 설정 (Tailscale 기반 NFS)
+# Network defaults. n4000 is not a DNS or exit-node control-plane dependency.
 ts_nfs_export_path: "/mnt/usb"
 ts_nfs_client_mount_path: "/mnt/nfs"
 local_service_path: "/home/{{ ansible_user }}/docker_volumes"
 ts_nfs_server_host: "n4000"
 ts_nfs_allowed_cidr: "100.64.0.0/10"
 
-# Tailscale per-host flags (ts_ prefix).
+# Tailscale DNS policy. n4000 must not bootstrap through a DNS service hosted
+# on itself: doing so previously produced a resolver loop during recovery.
 ts_accept_dns_default: true
 ts_accept_dns_by_host:
-  arm: true
-  dev-ec2: true
-  n4000: true
-  n4200: true
+  n4000: false
 
-# Advertise exit node on selected hosts only.
+# Exit-node advertisement is deliberately disabled for n4000. Re-enable only
+# through a reviewed host-specific change after the rebuilt node passes soak.
 ts_advertise_exit_node_by_host:
-  n4000: true
+  n4000: false
+
+# Resolver policy used by roles/common/tasks/base.yml when Tailnet DNS is not
+# accepted. This keeps n4000 bootstrap independent from local AdGuard.
+resolver_mode_by_host:
+  n4000: static
+resolver_static_nameservers_by_host:
+  n4000:
+    - 1.1.1.1
+    - 9.9.9.9
+resolver_fallback_nameservers:
+  - 1.1.1.1
+  - 9.9.9.9

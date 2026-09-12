@@ -3,4 +3,6 @@
 .legacy/
 .vault_pass
 .cache/
+inventory/bootstrap.ini
+host_vars/n4000.yml
 .DS_Store

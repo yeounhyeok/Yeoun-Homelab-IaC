@@ -1,0 +1,32 @@
+---
+# Fresh-host baseline. Application configuration and database data are restored
+# from a verified encrypted backup, never synthesized by this role.
+n4000_service_root: "/home/{{ ansible_user }}/docker_volumes"
+n4000_service_directories:
+  - adguardhome
+  - cloudflared
+  - immich-app
+  - jellyfin
+  - moa-monitoring
+  - navidrome
+  - nextcloud
+  - nginx-proxy-manager
+  - obsidian-mcp
+  - obsidian-mcp-hsshin
+  - obsidian-mcp-vilab
+  - syncthing
+  - vaultwarden
+
+# Keep this false until the external HDD identity has been checked in the fresh OS.
+n4000_mount_data_disk: false
+n4000_data_disk_uuid: ""
+n4000_data_mount_path: /mnt/usb
+n4000_data_mount_options: "defaults,nofail,x-systemd.device-timeout=15"
+
+# Named Docker volumes cannot be trusted as a portable backup format. Restore
+# application-native dumps instead (Postgres/SQLite exports) and recreate volumes.
+n4000_required_commands:
+  - docker
+  - docker compose
+  - tailscale
+  - findmnt

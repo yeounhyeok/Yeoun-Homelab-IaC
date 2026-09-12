@@ -1,0 +1,9 @@
+---
+# Copy the required values into encrypted host variables or Ansible Vault.
+# Do not commit the real disk UUID, tunnel tokens, compose .env values, or keys.
+
+# Set only after verifying the external HDD model and UUID in the fresh OS.
+n4000_data_disk_uuid: "CHANGE_ME_AFTER_FRESH_OS_VERIFICATION"
+
+# Keep this false for the first bootstrap. Set true only after the UUID check.
+n4000_mount_data_disk: false

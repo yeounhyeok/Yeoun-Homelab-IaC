@@ -1,0 +1,86 @@
+---
+- name: Install n4000 recovery and diagnostics packages
+  ansible.builtin.apt:
+    name:
+      - smartmontools
+      - jq
+      - rsync
+      - python3
+    state: present
+    update_cache: true
+    lock_timeout: 600
+
+- name: Validate optional external data-disk mount settings
+  ansible.builtin.assert:
+    that:
+      - n4000_data_disk_uuid | length > 0
+    fail_msg: >-
+      n4000_mount_data_disk=true requires n4000_data_disk_uuid. Set it in
+      encrypted host variables only after checking the HDD UUID in the fresh OS.
+  when: n4000_mount_data_disk | bool
+
+- name: Create external-data mount point
+  ansible.builtin.file:
+    path: "{{ n4000_data_mount_path }}"
+    state: directory
+    mode: "0755"
+  when: n4000_mount_data_disk | bool
+
+- name: Mount verified external data disk by UUID
+  ansible.posix.mount:
+    path: "{{ n4000_data_mount_path }}"
+    src: "UUID={{ n4000_data_disk_uuid }}"
+    fstype: ext4
+    opts: "{{ n4000_data_mount_options }}"
+    state: mounted
+  when: n4000_mount_data_disk | bool
+
+- name: Create service-root directory
+  ansible.builtin.file:
+    path: "{{ n4000_service_root }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0750"
+
+- name: Create empty service project roots for restore
+  ansible.builtin.file:
+    path: "{{ n4000_service_root }}/{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0750"
+  loop: "{{ n4000_service_directories }}"
+
+- name: Ensure Docker starts after a clean host bootstrap
+  ansible.builtin.systemd:
+    name: docker
+    state: started
+    enabled: true
+
+- name: Verify required baseline commands
+  ansible.builtin.command: "{{ item }} --version"
+  changed_when: false
+  loop: "{{ n4000_required_commands }}"
+  when: item != 'docker compose'
+
+- name: Verify Docker Compose plugin is available
+  ansible.builtin.command: docker compose version
+  changed_when: false
+
+- name: Verify Docker daemon responds before any state restore
+  ansible.builtin.command: docker info
+  changed_when: false
+
+- name: Verify data disk mount when explicitly requested
+  ansible.builtin.command: "findmnt -rn -T {{ n4000_data_mount_path }} -o SOURCE,FSTYPE,TARGET"
+  changed_when: false
+  register: n4000_data_mount_check
+  when: n4000_mount_data_disk | bool
+
+- name: Assert external data disk is really mounted
+  ansible.builtin.assert:
+    that:
+      - "'ext4' in n4000_data_mount_check.stdout"
+      - "n4000_data_mount_path in n4000_data_mount_check.stdout"
+  when: n4000_mount_data_disk | bool

@@ -1,0 +1,4 @@
+# Copy to inventory/bootstrap.ini locally; never commit the real bootstrap IP.
+# Use only for the fresh OS before Tailscale enrollment is complete.
+[n4000_bootstrap]
+n4000 ansible_host=CHANGE_ME_LAN_IP ansible_user=yeoun ansible_port=22

@@ -1,0 +1,114 @@
+# n4000 clean-rebuild preservation manifest
+# Generated from live container mounts on 2026-09-12. No secret values belong here.
+# Backup artifacts containing compose .env files, credentials, certificates, or
+# private keys must be encrypted at rest and must not be committed to Git.
+
+principles:
+  - Preserve application-native state, not /var/lib/docker as a whole.
+  - Recreate Docker images, containers, overlayfs layers, caches, and anonymous volumes.
+  - Mount the 931.5GiB external HDD only after its UUID is manually verified in the fresh OS.
+  - Do not restore /var/lib/tailscale/tailscaled.state; enroll a new node deliberately.
+
+critical_restore:
+  - service: nginx-proxy-manager
+    preserve:
+      - /home/yeoun/docker_volumes/nginx-proxy-manager/data
+      - /home/yeoun/docker_volumes/nginx-proxy-manager/letsencrypt
+      - /home/yeoun/docker_volumes/nginx-proxy-manager/docker-compose.yml
+      - encrypted .env or equivalent secret source
+    verify_after_restore: "proxy-host count, certificate inventory, and public HTTPS probes"
+  - service: vaultwarden
+    preserve:
+      - /home/yeoun/docker_volumes/vaultwarden/data
+      - /home/yeoun/docker_volumes/vaultwarden/docker-compose.yml
+      - encrypted .env or equivalent secret source
+    verify_after_restore: "Vaultwarden health endpoint and encrypted database readability"
+  - service: adguardhome
+    preserve:
+      - /home/yeoun/docker_volumes/adguardhome/conf
+      - /home/yeoun/docker_volumes/adguardhome/work
+      - /home/yeoun/docker_volumes/adguardhome/docker-compose.yml
+    verify_after_restore: "local DNS resolution, rewrites, and Tailnet DNS policy"
+  - service: cloudflared
+    preserve:
+      - /home/yeoun/docker_volumes/cloudflared/docker-compose.yml
+      - encrypted tunnel-token source in Vaultwarden
+    verify_after_restore: "connector healthy and public-host HTTP probes"
+  - service: immich
+    preserve:
+      - /mnt/usb/immich_drive/library
+      - application-native database export from the active Immich data store
+      - /home/yeoun/docker_volumes/immich-app/docker-compose.yml
+      - encrypted .env or equivalent secret source
+    recreate:
+      - Docker named volumes after importing the native database export
+    verify_after_restore: "asset count, login, library visibility, and background-job health"
+  - service: nextcloud
+    preserve:
+      - /mnt/usb
+      - /home/yeoun/docker_volumes/nextcloud/config
+      - /home/yeoun/docker_volumes/nextcloud/redis
+      - /home/yeoun/docker_volumes/nextcloud/docker-compose.yml
+      - application-native database export if configured
+    verify_after_restore: "occ status, login, data-directory and database consistency"
+  - service: syncthing
+    preserve:
+      - /home/yeoun/docker_volumes/syncthing/config
+      - /mnt/usb
+      - /home/yeoun/docker_volumes/syncthing/docker-compose.yml
+    verify_after_restore: "folder IDs, peer IDs, and scan status"
+  - service: navidrome
+    preserve:
+      - /home/yeoun/docker_volumes/navidrome/navidrome_data
+      - /mnt/usb/media/Musics
+      - /home/yeoun/docker_volumes/navidrome/docker-compose.yml
+    verify_after_restore: "library count, playlists, and external music probe"
+
+preserve_config_or_state:
+  - service: jellyfin
+    preserve:
+      - /home/yeoun/docker_volumes/jellyfin/jellyfin/config
+      - /mnt/usb/media
+      - /home/yeoun/docker_volumes/jellyfin/docker-compose.yml
+    discardable:
+      - /home/yeoun/docker_volumes/jellyfin/jellyfin/cache
+  - service: monitoring
+    preserve:
+      - /home/yeoun/docker_volumes/moa-monitoring/grafana/provisioning
+      - /home/yeoun/docker_volumes/moa-monitoring/grafana/dashboards
+      - /home/yeoun/docker_volumes/moa-monitoring/prometheus/prometheus.yml
+      - /home/yeoun/docker_volumes/moa-monitoring/blackbox/config.yml
+      - Grafana application export if dashboards/users/history must survive
+    optional_history:
+      - Prometheus TSDB named volume
+  - service: obsidian-mcp
+    preserve:
+      - compose manifests and encrypted environment sources only
+      - /mnt/usb vault content is authoritative data
+
+native_dump_required:
+  - Immich database/data named volume currently attached to immich_server
+  - Immich Redis/Valkey volume only if job/session continuity matters
+  - Grafana named volume if UI users or unsaved dashboards matter
+  - Prometheus named volume only if historical metrics matter
+  - Uptime Kuma named volume if monitors/history matter
+  - Ghost/Postgres, documentserver/Postgres, vocal-coach/Postgres, chatbot volumes only after owner confirms they are still in service
+
+recreate_do_not_copy:
+  - /var/lib/docker
+  - Docker overlay2 and container metadata
+  - anonymous and unowned Docker volumes
+  - Docker image cache
+  - /var/lib/tailscale/tailscaled.state
+  - host SSH keys unless preserving host identity is explicitly required
+  - /var/log and journal archives after forensic copy
+
+forensic_preserve_before_wipe:
+  - /var/lib/systemd/pstore
+  - /var/crash
+  - journalctl exports for the affected boots
+  - /etc/fstab
+  - /etc/docker/daemon.json
+  - /etc/systemd/system
+  - /etc/netplan
+  - current package and service manifests

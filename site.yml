@@ -1,101 +1,44 @@
 ---
-# host_specific 변수 로드 (group_vars/host_specific.yml → 각 호스트 fact). 태그 없음 → 항상 먼저 실행
+# Safe shared baseline. This deliberately does not deploy services, create an
+# NFS hub, or configure WireGuard. Use an explicit playbook for those legacy
+# functions only after a reviewed design decision.
 - hosts: all
   gather_facts: false
   tasks:
     - name: Load encrypted shared variables
-      include_vars:
+      ansible.builtin.include_vars:
         file: "{{ playbook_dir }}/group_vars/secrets.yml"
       no_log: true
 
     - name: Apply host-specific variables
-      set_fact:
+      ansible.builtin.set_fact:
         "{{ item.key }}": "{{ item.value }}"
-      loop: "{{ host_specific[inventory_hostname] | dict2items }}"
-      when: host_specific is defined and inventory_hostname in host_specific
+      loop: "{{ host_specific[inventory_hostname] | default({}) | dict2items }}"
+      no_log: true
   tags: [always]
 
-# do some common settings
 - hosts: all
-  become: yes
+  become: true
   roles:
     - common
-  tags: common
+  tags: [common]
 
 - hosts: all
-  become: yes
+  become: true
   roles:
     - ram_optimization
-  tags: ram
+  tags: [ram]
 
-
-# set tailscale 
 - hosts: all
-  become: yes
+  become: true
   roles:
     - tailscale
-  tags: tailscale
+  tags: [tailscale]
 
-# nfs setup
+# Legacy NFS is intentionally opt-in. The current target architecture does not
+# treat n4000 as a shared-storage or network-control-plane hub.
 - hosts: all
-  become: yes
-  name: "NFS setting -> shares docker_volumes from n4000"
+  become: true
   roles:
     - nfs_setup
-  tags: nfs
-
-
-#- hosts: n4000
-## 1. 🐢 N4000: Data Warehouse hub (HDD/유선)
-#  become: yes
-#  vars:
-#    ts_nfs_client_mount_path: "/mnt/usb/docker_volumes"
-#    target_services:
-#      - nextcloud
-#      - immich-app
-#      - syncthing
-#      - vaultwarden
-#      - adguardhome
-#  roles:
-#    - deploy_services
-#  tags: deploy
-#
-## 2. ⚡ OCI ARM: Compute Power (RAM 24GB)
-#- hosts: arm
-#  become: yes
-#  vars:
-#    target_services:
-#      - authentik
-#      - code-server
-#      - onlyoffice
-#      - uptimekuma
-#      - grafana
-#      - nginx-proxy-manager
-#      - jellyfin
-#  roles:
-#    - deploy_services
-#  tags: deploy
-#
-## 3. 🚀 N4200: Edge Worker (SSD/Web)
-#- hosts: n4200
-#  become: yes
-#  vars:
-#    target_services:
-#      - ghost
-#      - homepage
-#      - home-assistant
-#  roles:
-#    - deploy_services
-#  tags: deploy
-#
-## 4. 🛡️ OCI AMD (vps): Gateway
-##- hosts: vps
-##  become: yes
-##  vars:
-##    target_services:
-##      - nginx-proxy-manager
-##      - frps_vps
-##  roles:
-#    - common
-#    - deploy_services
-#  tags: deploy
+  tags: [never, nfs_legacy]

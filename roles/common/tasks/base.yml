@@ -1,17 +1,17 @@
 ---
 - name: Set Timezone to Asia/Seoul
-  timezone:
+  ansible.builtin.timezone:
     name: Asia/Seoul
 
-- name: Enable IPv4 Forwarding (For WG/Docker Routing)
-  sysctl:
+- name: Enable IPv4 forwarding for Docker routing
+  ansible.builtin.sysctl:
     name: net.ipv4.ip_forward
     value: '1'
     state: present
-    reload: yes
+    reload: true
 
 - name: Configure APT network retries
-  copy:
+  ansible.builtin.copy:
     dest: /etc/apt/apt.conf.d/99network-retry
     mode: '0644'
     content: |
@@ -20,98 +20,68 @@
       Acquire::https::Timeout "20";
       Acquire::ForceIPv4 "true";
 
-- name: Find Docker apt source files before apt operations
-  find:
-    paths: /etc/apt/sources.list.d
-    patterns: "*docker*.list"
-    file_type: file
-  register: early_docker_source_files
-
-- name: Remove conflicting Docker apt source files before apt operations
-  file:
-    path: "{{ item.path }}"
-    state: absent
-  loop: "{{ early_docker_source_files.files }}"
-  when: item.path != '/etc/apt/sources.list.d/docker.list'
-
-- name: Remove Docker repo lines from sources.list before apt operations
-  lineinfile:
-    path: /etc/apt/sources.list
-    regexp: '.*download\.docker\.com.*'
-    state: absent
-
 - name: Refresh APT cache with retry
-  command: apt-get update
+  ansible.builtin.command: apt-get update
   register: apt_update_result
   changed_when: false
   retries: 4
   delay: 5
   until: apt_update_result.rc == 0
 
-- name: Install rsync (Required for file synchronization)
-  apt:
+- name: Install rsync
+  ansible.builtin.apt:
     name: rsync
     state: present
-    update_cache: no
+    update_cache: false
 
-- name: Resolve DNS policy for current host
-  set_fact:
+- name: Resolve Tailscale DNS policy for current host
+  ansible.builtin.set_fact:
     ts_dns_enabled_on_host: "{{ (ts_accept_dns_by_host | default({})).get(inventory_hostname, ts_accept_dns_default | default(true)) | bool }}"
+    resolver_mode: "{{ (resolver_mode_by_host | default({})).get(inventory_hostname, 'systemd-resolved') }}"
+    resolver_static_nameservers: "{{ (resolver_static_nameservers_by_host | default({})).get(inventory_hostname, resolver_fallback_nameservers | default(['1.1.1.1', '9.9.9.9'])) }}"
 
-# --- [분기점] AGH를 돌리는 서버(N4000)만 특별 관리 ---
-- name: Disable systemd-resolved only on AGH host (N4000)
-  service:
+- name: Disable systemd-resolved for an explicitly static resolver host
+  ansible.builtin.service:
     name: systemd-resolved
     state: stopped
-    enabled: no
+    enabled: false
   when:
-    - inventory_hostname == 'n4000'
-    - not ts_dns_enabled_on_host
+    - not ts_dns_enabled_on_host | bool
+    - resolver_mode == 'static'
 
-- name: Setup static resolv.conf for AGH host
-  copy:
+- name: Install static resolver configuration for an explicitly static resolver host
+  ansible.builtin.copy:
     dest: /etc/resolv.conf
-    content: |
-      nameserver 127.0.0.1
-      nameserver 8.8.8.8
-    force: yes
+    mode: '0644'
+    content: "{{ resolver_static_nameservers | map('regex_replace', '^(.*)$', 'nameserver \\1') | join('\\n') }}\\n"
   when:
-    - inventory_hostname == 'n4000'
-    - not ts_dns_enabled_on_host
+    - not ts_dns_enabled_on_host | bool
+    - resolver_mode == 'static'
 
-# --- [분기점] AGH를 안 돌리는 나머지 서버들 설정 ---
-- name: Fix systemd-resolved DNS for other hosts
-  lineinfile:
+- name: Configure fallback DNS for systemd-resolved hosts
+  ansible.builtin.lineinfile:
     path: /etc/systemd/resolved.conf
     regexp: '^#?DNS='
-    line: 'DNS=8.8.8.8 1.1.1.1 10.0.1.10'
+    line: "DNS={{ resolver_static_nameservers | join(' ') }}"
   when:
-    - inventory_hostname != 'n4000'
-    - not ts_dns_enabled_on_host
+    - not ts_dns_enabled_on_host | bool
+    - resolver_mode == 'systemd-resolved'
 
-- name: Ensure /etc/resolv.conf path is absent before linking (other hosts)
-  file:
-    path: /etc/resolv.conf
-    state: absent
-  when:
-    - inventory_hostname != 'n4000'
-    - not ts_dns_enabled_on_host
-
-- name: Ensure Stub Resolver Link for other hosts
-  file:
+- name: Ensure systemd-resolved owns resolv.conf on resolver-managed hosts
+  ansible.builtin.file:
     src: /run/systemd/resolve/stub-resolv.conf
     dest: /etc/resolv.conf
     state: link
-    force: yes
+    force: true
   when:
-    - inventory_hostname != 'n4000'
-    - not ts_dns_enabled_on_host
+    - not ts_dns_enabled_on_host | bool
+    - resolver_mode == 'systemd-resolved'
 
-- name: Restart systemd-resolved for other hosts
-  service:
+- name: Restart systemd-resolved after fallback DNS changes
+  ansible.builtin.service:
     name: systemd-resolved
     state: restarted
-    enabled: yes
+    enabled: true
   when:
-    - inventory_hostname != 'n4000'
-    - not ts_dns_enabled_on_host
+    - not ts_dns_enabled_on_host | bool
+    - resolver_mode == 'systemd-resolved'

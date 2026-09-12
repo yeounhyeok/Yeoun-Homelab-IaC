@@ -1,124 +1,65 @@
-# 🏠 Home Lab IaC
+# 🏠 Yeoun Homelab IaC
 
-**WireGuard + Tailscale + NFS + Docker Compose** 기반 멀티노드 홈 인프라를 자동화하는 Ansible 워크스페이스.
+Ansible workspace for a **clean, reproducible host baseline**. It separates:
 
----
+1. **IaC-managed baseline** — Ubuntu settings, Docker, Tailscale, disk mount, service directory layout, diagnostics.
+2. **Encrypted restore artifacts** — compose manifests, `.env` files, certificates, service configuration, and native database dumps.
+3. **Disposable runtime state** — Docker overlay layers, images, containers, caches, anonymous volumes, and logs.
 
-## 한눈에 보기
+The immediate use case is a clean n4000 rebuild after root-eMMC filesystem instability.
 
-| 구분 | 노드 | 역할 |
-|------|------|------|
-| **OCI** | `arm` | 컴퓨팅 (Authentik, Code-Server, Jellyfin, NPM…) |
-| **AWS** | `dev-ec2` | 개발 staging 서버 |
-| **Home** | `n4000` | **Data Hub** — NFS 서버, WireGuard 허브, Tailscale Exit Node |
-| **Home** | `n4200` | 엣지 (Ghost, Homepage, Home Assistant) |
+## Safety model
 
-→ **site.yml**로 네트워크/WireGuard, Tailscale, NFS, 서비스 배포까지 관리합니다.
+- This repository **never stores plaintext credentials**, tunnel tokens, private keys, or application `.env` files.
+- `playbooks/n4000_rebuild.yml` does **not** format disks, restore user data, or start application containers.
+- `playbooks/n4000_restore_services.yml` starts only an explicit allow-list of already-restored projects.
+- Do not copy `/var/lib/docker` to a fresh OS. Use native database exports and compose-level restoration.
+- Do not restore `/var/lib/tailscale/tailscaled.state`; enroll the rebuilt host as a deliberate Tailnet node.
 
----
+## Current architecture decision
 
-## 요구사항
+- `arm`: primary Vault/automation and active Tailnet DNS control-plane.
+- `n4000`: stateful Docker host after rebuild; **not** a default NFS, WireGuard, DNS, or exit-node control-plane dependency.
+- `n4200`: headless edge/application node.
+- NFS and WireGuard roles remain available only as explicit `nfs_legacy`/legacy workflows; they do not run in the default `site.yml` path.
 
-- **Ansible** 2.14+ (컬렉션: `community.docker`)
-- 대상 호스트: **Ubuntu** (apt), SSH 접근 가능
-- Vault 비밀번호 파일: `.vault_pass` (로컬에만 두고 `.gitignore` 유지)
+## Bootstrap a fresh n4000
 
 ```bash
-# 컬렉션 설치 (Docker Compose V2 사용 시)
-ansible-galaxy collection install community.docker
+ansible-galaxy collection install -r collections/requirements.yml
+
+# 1) Reinstall Ubuntu and identify disks by model/UUID.
+#    Never assume mmcblk0: controller numbering has changed across boots.
+#    Do not touch the 931.5GiB external HDD.
+
+# 2) Use inventory/bootstrap.ini (copied from inventory/bootstrap.ini.example)
+#    until Tailnet enrollment is complete. Put n4000_data_disk_uuid and Vault
+#    secrets in encrypted variables; first run leaves the HDD unmounted.
+ansible-playbook -i inventory/bootstrap.ini playbooks/n4000_rebuild.yml --limit n4000
+
+# 3) After verifying the HDD UUID in the fresh OS, opt in to the mount.
+ansible-playbook -i inventory/bootstrap.ini playbooks/n4000_rebuild.yml --limit n4000 \\
+  -e n4000_mount_data_disk=true
+
+# 4) Restore encrypted compose/config artifacts and native DB dumps.
+#    Start only reviewed services, in dependency order.
+ansible-playbook playbooks/n4000_restore_services.yml --limit n4000 \\
+  -e '{"n4000_restore_services":["adguardhome","nginx-proxy-manager"]}'
 ```
 
----
+## Required preservation review
 
-## Quick Start
+Read [`docs/n4000-preservation-manifest.yml`](docs/n4000-preservation-manifest.yml) before any wipe. It classifies current n4000 state as:
+
+- **critical restore:** NPM/certificates, Vaultwarden, AdGuard, Cloudflared, Immich, Nextcloud, Syncthing, Navidrome;
+- **preserve or selectively restore:** Jellyfin and monitoring configuration/history;
+- **triage with owner confirmation:** legacy Ghost, Postgres, Uptime Kuma, Portainer, chatbot, documentserver, and vocal-coach volumes;
+- **recreate:** Docker runtime state and Tailscale identity.
+
+## Default baseline
 
 ```bash
-# 전체 실행 (host_specific 로드 → common → wireguard → nfs → tailscale)
 ansible-playbook site.yml
-
-# 태그로 나눠서 실행
-ansible-playbook site.yml --tags wireguard
-ansible-playbook site.yml --tags nfs
-ansible-playbook site.yml --tags tailscale
-ansible-playbook site.yml --tags deploy
-
-# 특정 노드만
-ansible-playbook site.yml --limit n4000,n4200
 ```
 
-**최초 1회:** `group_vars/secrets.yml` 이 Vault 암호화되어 있으므로, `ansible.cfg`에 설정한 `vault_password_file`(예: `.vault_pass`)이 있어야 합니다.
-
----
-
-## 프로젝트 구조
-
-```
-.
-├── ansible.cfg          # inventory, vault_password_file, SSH
-├── inventory.ini        # oci_nodes, home_nodes, tmp_nodes
-├── site.yml             # 메인 플레이북 (common → wireguard → nfs → tailscale)
-├── group_vars/
-│   ├── all.yml          # 공통 변수 (ts_nfs_*, ts_*)
-│   └── secrets.yml      # 🔐 Vault 암호화 (비밀/키/호스트별 설정)
-├── playbooks/           # cleanup, docker_stop_all, docker_start_all
-├── roles/
-│   ├── wireguard/       # VPN 구축 (키 생성, wg0.conf, resolv)
-│   ├── tailscale/       # 백업 관리망 + Exit Node 광고
-│   ├── nfs_setup/       # NFS 서버(n4000) / 클라이언트
-│   ├── common/          # base, docker, security + wg0.conf.j2
-│   ├── deploy_services/ # NFS 동기화(rsync) + docker_compose_v2
-│   └── cron_cli_to_hub/ # cron 관련
-└── docs/
-    └── WORKSPACE_OVERVIEW.md   # 역할 트리, 기술 스택, Vault 상세
-```
-
----
-
-## Roles 한 줄 요약
-
-| Role | 하는 일 |
-|------|----------|
-| **wireguard** | WireGuard 설치·키 생성·설정, Docker 잠시 중지 후 적용 |
-| **tailscale** | Tailscale 설치/조인, DNS 수락, Exit Node 광고(호스트별) |
-| **nfs_setup** | n4000 = NFS 서버(exports), 나머지 = NFS 클라이언트(멱등 마운트 검증) |
-| **deploy_services** | N4000에서 rsync로 볼륨 동기화 → `docker compose` 로 서비스 기동 |
-| **common** | timezone, ip_forward, rsync, resolv, Docker 등 (site.yml에서 선택 사용) |
-| **cron_cli_to_hub** | NFS/동기화용 cron |
-
----
-
-## 🔐 보안 (Vault)
-
-- **`group_vars/secrets.yml`** → **전체 파일**이 `Ansible Vault`(AES256)로 암호화되어 있습니다.
-- 안에 들어가는 것: SSH 키 경로, `hub_info`, `all_peers`, **host_specific**(endpoint, public_key, private_key, address, public_interface).
-- Tailscale 인증키는 `vault_ts_auth_key` 사용 (하위호환으로 `vault_tailscale_auth_key` fallback 지원).
-- 복호화는 `ansible.cfg`의 `vault_password_file`(예: `.vault_pass`)로 자동적용됩니다.
-- **`.vault_pass`는 반드시 `.gitignore`에 두고 저장소에 올리지 말 것.**
-
----
-
-## 기술 스택
-
-**인프라·자동화**  
-Ansible · Ansible Vault · Inventory(INI) · Tags · group_vars / host_specific
-
-**네트워크·VPN**  
-WireGuard · Tailscale(MagicDNS/Exit Node) · iptables(MASQUERADE) · resolvectl
-
-**스토리지**  
-NFS(ts_nfs_ 변수 기반) · rsync · Jinja2(wg0.conf, exports)
-
-**컨테이너**  
-Docker · Docker Compose V2 (`community.docker.docker_compose_v2`)
-
-**시스템**  
-systemd · apt · sysctl(ip_forward) · timezone(Asia/Seoul) · mount/fstab
-
-자세한 역할 트리·모듈·플로우는 **[docs/WORKSPACE_OVERVIEW.md](docs/WORKSPACE_OVERVIEW.md)** 참고.
-
----
-
-## 라이선스 / 기타
-
-- 이 레포는 홈랩 자동화용 템플릿/참고용으로 두었습니다.
-- 실제 IP·호스트명·비밀값은 `inventory.ini`와 Vault로 관리하며, 공개 시 민감 정보 제외 여부를 꼭 확인하세요.
+This applies only `common`, RAM optimization, and Tailscale. It does not deploy services or make n4000 an NFS hub.
