@@ -1,65 +1,94 @@
-# 🏠 Yeoun Homelab IaC
+# Yeoun Homelab IaC
 
-Ansible workspace for a **clean, reproducible host baseline**. It separates:
+Ansible repository for the current homelab architecture. The repository has a
+strict boundary between **host convergence** and **application-state restore**.
 
-1. **IaC-managed baseline** — Ubuntu settings, Docker, Tailscale, disk mount, service directory layout, diagnostics.
-2. **Encrypted restore artifacts** — compose manifests, `.env` files, certificates, service configuration, and native database dumps.
-3. **Disposable runtime state** — Docker overlay layers, images, containers, caches, anonymous volumes, and logs.
+## Architecture
 
-The immediate use case is a clean n4000 rebuild after root-eMMC filesystem instability.
-
-## Safety model
-
-- This repository **never stores plaintext credentials**, tunnel tokens, private keys, or application `.env` files.
-- `playbooks/n4000_rebuild.yml` does **not** format disks, restore user data, or start application containers.
-- `playbooks/n4000_restore_services.yml` starts only an explicit allow-list of already-restored projects.
-- Do not copy `/var/lib/docker` to a fresh OS. Use native database exports and compose-level restoration.
-- Do not restore `/var/lib/tailscale/tailscaled.state`; enroll the rebuilt host as a deliberate Tailnet node.
-
-## Current architecture decision
-
-- `arm`: primary Vault/automation and active Tailnet DNS control-plane.
-- `n4000`: stateful Docker host after rebuild; **not** a default NFS, WireGuard, DNS, or exit-node control-plane dependency.
+- `arm`: primary automation/Vault host and active Tailnet DNS control-plane.
+- `n4000`: stateful Docker host, rebuilt from clean eMMC when required.
 - `n4200`: headless edge/application node.
-- NFS and WireGuard roles remain available only as explicit `nfs_legacy`/legacy workflows; they do not run in the default `site.yml` path.
+- External HDD: user/application data; mount only after model and UUID are
+  verified on the fresh OS.
 
-## Bootstrap a fresh n4000
+The default architecture does **not** make n4000 an NFS server, WireGuard hub,
+DNS dependency, or exit node. Those old roles were removed from the active tree;
+see `docs/legacy-removal.md`.
+
+## Repository contract
+
+### IaC manages
+
+- Ubuntu baseline and timezone
+- Docker Engine, Compose V2, bounded container logs
+- SSH policy with config validation and PAM kept available for MFA extensions
+- zram policy
+- Tailscale enrollment/reconciliation
+- verified external-disk mount and empty service roots on n4000
+
+### IaC does not manage
+
+- disk formatting or partitioning
+- `/var/lib/docker` copying
+- Docker overlay/container metadata
+- Tailscale identity state
+- plaintext `.env`, private keys, tunnel tokens, or database passwords
+- automatic discovery and startup of every directory found on disk
+
+Application data is restored from encrypted config archives and native database
+exports according to `docs/n4000-preservation-manifest.yml`.
+
+## Entry points
+
+```text
+site.yml                              shared host baseline
+playbooks/n4000_rebuild.yml           clean n4000 host bootstrap
+playbooks/n4000_restore_services.yml  explicit compose restore allow-list
+playbooks/tailscale_enroll.yml        enrollment/reconciliation
+playbooks/docker_stop_all.yml         emergency stop, confirmation required
+playbooks/docker_start_all.yml        emergency start
+```
+
+The old Tailscale backup-named entrypoint was removed; call
+`playbooks/tailscale_enroll.yml` directly.
+
+## Fresh n4000 workflow
 
 ```bash
 ansible-galaxy collection install -r collections/requirements.yml
 
-# 1) Reinstall Ubuntu and identify disks by model/UUID.
-#    Never assume mmcblk0: controller numbering has changed across boots.
-#    Do not touch the 931.5GiB external HDD.
+# 1. Reinstall Ubuntu. Identify disks by model and UUID.
+#    Never infer the eMMC from mmcblk0/mmcblk1 numbering.
+#    Do not format or mount the 931.5GiB HDD until verified.
 
-# 2) Use inventory/bootstrap.ini (copied from inventory/bootstrap.ini.example)
-#    until Tailnet enrollment is complete. Put n4000_data_disk_uuid and Vault
-#    secrets in encrypted variables; first run leaves the HDD unmounted.
-ansible-playbook -i inventory/bootstrap.ini playbooks/n4000_rebuild.yml --limit n4000
+# 2. Copy the bootstrap inventory example and set only the temporary LAN IP.
+cp inventory/bootstrap.ini.example inventory/bootstrap.ini
 
-# 3) After verifying the HDD UUID in the fresh OS, opt in to the mount.
-ansible-playbook -i inventory/bootstrap.ini playbooks/n4000_rebuild.yml --limit n4000 \\
-  -e n4000_mount_data_disk=true
+# 3. Put n4000_data_disk_uuid and enrollment secrets in ignored/encrypted vars.
+#    First run intentionally leaves the HDD unmounted.
+ansible-playbook -i inventory/bootstrap.ini playbooks/n4000_rebuild.yml \
+  --limit n4000
 
-# 4) Restore encrypted compose/config artifacts and native DB dumps.
-#    Start only reviewed services, in dependency order.
-ansible-playbook playbooks/n4000_restore_services.yml --limit n4000 \\
-  -e '{"n4000_restore_services":["adguardhome","nginx-proxy-manager"]}'
+# 4. After checking the HDD model and UUID on the fresh OS, opt in to mount.
+ansible-playbook -i inventory/bootstrap.ini playbooks/n4000_rebuild.yml \
+  --limit n4000 -e n4000_mount_data_disk=true
+
+# 5. Restore selected config and native DB exports, then start only an allow-list.
+ansible-playbook playbooks/n4000_restore_services.yml --limit n4000 \
+  -e '{"compose_restore_services":["adguardhome","nginx-proxy-manager"]}'
 ```
 
-## Required preservation review
+## Validation
 
-Read [`docs/n4000-preservation-manifest.yml`](docs/n4000-preservation-manifest.yml) before any wipe. It classifies current n4000 state as:
-
-- **critical restore:** NPM/certificates, Vaultwarden, AdGuard, Cloudflared, Immich, Nextcloud, Syncthing, Navidrome;
-- **preserve or selectively restore:** Jellyfin and monitoring configuration/history;
-- **triage with owner confirmation:** legacy Ghost, Postgres, Uptime Kuma, Portainer, chatbot, documentserver, and vocal-coach volumes;
-- **recreate:** Docker runtime state and Tailscale identity.
-
-## Default baseline
+Use a local Ansible installation and install the pinned collections:
 
 ```bash
-ansible-playbook site.yml
+ansible-galaxy collection install -r collections/requirements.yml
+ansible-playbook --syntax-check site.yml
+ansible-playbook --syntax-check playbooks/n4000_rebuild.yml
+ansible-playbook --syntax-check playbooks/n4000_restore_services.yml
 ```
 
-This applies only `common`, RAM optimization, and Tailscale. It does not deploy services or make n4000 an NFS hub.
+The repository deliberately does not require a vault password to be committed.
+Provide `.vault_pass` through the local ignored path or another approved
+Ansible secret mechanism at execution time.

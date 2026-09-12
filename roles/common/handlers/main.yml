@@ -1,9 +1,12 @@
 ---
-- name: restart ssh
-  service:
-    name: "{{ item }}"
+- name: Restart Docker after daemon configuration changes
+  ansible.builtin.systemd:
+    name: docker
     state: restarted
-  loop:
-    - ssh
-    - sshd
-  ignore_errors: yes  # 둘 중 하나가 없어도 에러 안 나게
+    daemon_reload: true
+
+- name: Restart SSH after policy changes
+  ansible.builtin.systemd:
+    name: "{{ ssh_service_name }}"
+    state: restarted
+    daemon_reload: true

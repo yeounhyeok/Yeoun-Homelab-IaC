@@ -1,9 +1,0 @@
----
-- name: Configure Tailscale backup management path
-  hosts:
-    - n4000
-    - n4200
-    - arm
-  become: yes
-  roles:
-    - tailscale

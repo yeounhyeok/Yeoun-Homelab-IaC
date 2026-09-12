@@ -1,9 +1,19 @@
 ---
-- name: "Stop Docker service"
-  hosts: all #tmp_nodes
-  become: yes
+- name: Stop Docker only with an explicit operator confirmation
+  hosts: all
+  become: true
+  gather_facts: false
+  vars:
+    docker_stop_confirm: false
+  pre_tasks:
+    - name: Require explicit confirmation before stopping Docker
+      ansible.builtin.assert:
+        that: docker_stop_confirm | bool
+        fail_msg: >-
+          Refusing to stop Docker implicitly. Re-run with
+          -e docker_stop_confirm=true and a reviewed --limit.
   tasks:
-    - name: Ensure Docker service is stopped
-      ansible.builtin.service:
+    - name: Stop Docker service
+      ansible.builtin.systemd:
         name: docker
         state: stopped

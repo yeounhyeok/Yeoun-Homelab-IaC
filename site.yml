@@ -1,44 +1,13 @@
 ---
-# Safe shared baseline. This deliberately does not deploy services, create an
-# NFS hub, or configure WireGuard. Use an explicit playbook for those legacy
-# functions only after a reviewed design decision.
-- hosts: all
-  gather_facts: false
-  tasks:
-    - name: Load encrypted shared variables
-      ansible.builtin.include_vars:
-        file: "{{ playbook_dir }}/group_vars/secrets.yml"
-      no_log: true
-
-    - name: Apply host-specific variables
-      ansible.builtin.set_fact:
-        "{{ item.key }}": "{{ item.value }}"
-      loop: "{{ host_specific[inventory_hostname] | default({}) | dict2items }}"
-      no_log: true
-  tags: [always]
-
-- hosts: all
+# The default playbook is intentionally boring: it manages only the shared
+# host baseline. Application data is restored by an explicit playbook.
+- name: Apply the shared host baseline
+  hosts: all
   become: true
   roles:
-    - common
-  tags: [common]
-
-- hosts: all
-  become: true
-  roles:
-    - ram_optimization
-  tags: [ram]
-
-- hosts: all
-  become: true
-  roles:
-    - tailscale
-  tags: [tailscale]
-
-# Legacy NFS is intentionally opt-in. The current target architecture does not
-# treat n4000 as a shared-storage or network-control-plane hub.
-- hosts: all
-  become: true
-  roles:
-    - nfs_setup
-  tags: [never, nfs_legacy]
+    - role: common
+      tags: [baseline, common]
+    - role: ram_optimization
+      tags: [baseline, ram]
+    - role: tailscale
+      tags: [baseline, tailscale]

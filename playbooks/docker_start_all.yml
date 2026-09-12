@@ -1,8 +1,11 @@
-- name: "Start Docker service"
+---
+- name: Start Docker service
   hosts: all
-  become: yes
+  become: true
+  gather_facts: false
   tasks:
-    - name: Ensure Docker service is started
-      ansible.builtin.service:
+    - name: Ensure Docker service is enabled and started
+      ansible.builtin.systemd:
         name: docker
         state: started
+        enabled: true

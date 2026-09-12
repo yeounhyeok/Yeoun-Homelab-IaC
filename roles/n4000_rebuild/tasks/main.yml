@@ -4,7 +4,6 @@
     name:
       - smartmontools
       - jq
-      - rsync
       - python3
     state: present
     update_cache: true

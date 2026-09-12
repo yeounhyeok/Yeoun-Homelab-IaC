@@ -1,4 +1,0 @@
----
-- name: Run NFS Setup
-  import_tasks: cron_cli_to_hub.yml
-  tags: cron

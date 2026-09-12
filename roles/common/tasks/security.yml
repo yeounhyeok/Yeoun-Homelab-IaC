@@ -1,22 +1,24 @@
 ---
-- name: Disable Password Authentication
-  lineinfile:
+- name: Disable SSH password authentication
+  ansible.builtin.lineinfile:
     path: /etc/ssh/sshd_config
-    regexp: '^#?PasswordAuthentication'
-    line: 'PasswordAuthentication no'
-  become: yes
+    regexp: '^#?PasswordAuthentication\s+'
+    line: "PasswordAuthentication {{ ssh_password_authentication | ternary('yes', 'no') }}"
+    validate: '/usr/sbin/sshd -t -f %s'
+  notify: Restart SSH after policy changes
 
-- name: Disable Keyboard Interactive Authentication
-  lineinfile:
+- name: Configure SSH keyboard-interactive authentication
+  ansible.builtin.lineinfile:
     path: /etc/ssh/sshd_config
-    regexp: '^#?KbdInteractiveAuthentication'
-    line: 'KbdInteractiveAuthentication no'
-  become: yes
+    regexp: '^#?KbdInteractiveAuthentication\s+'
+    line: "KbdInteractiveAuthentication {{ ssh_kbd_interactive_authentication | ternary('yes', 'no') }}"
+    validate: '/usr/sbin/sshd -t -f %s'
+  notify: Restart SSH after policy changes
 
-- name: Disable PAM Authentication
-  lineinfile:
+- name: Keep PAM enabled for supported MFA integrations
+  ansible.builtin.lineinfile:
     path: /etc/ssh/sshd_config
-    regexp: '^#?UsePAM'
-    line: 'UsePAM no'
-  become: yes
-  notify: restart ssh
+    regexp: '^#?UsePAM\s+'
+    line: "UsePAM {{ ssh_use_pam | ternary('yes', 'no') }}"
+    validate: '/usr/sbin/sshd -t -f %s'
+  notify: Restart SSH after policy changes

@@ -1,9 +1,9 @@
 ---
-- name: Run Base System Setup
-  import_tasks: base.yml
+- name: Run base system setup
+  ansible.builtin.import_tasks: base.yml
 
-- name: Run Docker Setup
-  import_tasks: docker.yml
+- name: Run Docker setup
+  ansible.builtin.import_tasks: docker.yml
 
-- name: Run Security Jobs
-  import_tasks: security.yml
+- name: Run SSH security policy
+  ansible.builtin.import_tasks: security.yml

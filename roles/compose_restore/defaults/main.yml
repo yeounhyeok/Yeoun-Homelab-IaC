@@ -1,0 +1,8 @@
+---
+compose_restore_service_root: "/home/{{ ansible_user }}/docker_volumes"
+compose_restore_services: []
+compose_restore_pull: missing
+# Do not remove containers outside the explicitly restored compose definition.
+compose_restore_remove_orphans: false
+compose_restore_wait: true
+compose_restore_wait_timeout: 60

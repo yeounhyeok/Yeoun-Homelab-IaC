@@ -1,7 +1,0 @@
----
-- name: Run NFS Setup
-  import_tasks: nfs_setup.yml
-  tags: nfs
-
-
-

@@ -1,0 +1,10 @@
+---
+- name: Configure the Tailscale management path
+  hosts:
+    - n4000
+    - n4200
+    - arm
+  become: true
+  roles:
+    - role: tailscale
+      tags: [tailscale]

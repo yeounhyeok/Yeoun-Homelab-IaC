@@ -1,6 +1,0 @@
-- name: Sync volumes from n4000 hub
-  import_tasks: sync_volumes_from_hub.yml
-  #when: inventory_hostname != 'n4000'
-
-#- name: Deploy by docker compose
-#  import_tasks: deploy_services.yml

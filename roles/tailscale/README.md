@@ -1,34 +1,24 @@
-# tailscale role (backup management path)
+# Tailscale management role
 
-WireGuard is still the primary management network in this repository.
-This role only adds Tailscale as a backup/secondary management path for emergency access.
-For Debian/Ubuntu/Raspbian hosts, it also configures the official Tailscale apt repository automatically.
+This is the supported management path. WireGuard is not part of the default
+architecture anymore.
 
-Required secret variable (Vault recommended):
+The role is idempotent for already-enrolled nodes: an auth key is required only
+when the node needs enrollment or `ts_force_reauth`/`ts_reapply_on_each_run` is
+explicitly enabled.
+
+Required only for enrollment/reconciliation:
 
 ```yaml
 vault_ts_auth_key: "tskey-..."
 ```
 
-Optional variables:
+Host policy belongs in inventory/group variables:
 
 ```yaml
-ts_tags:
-  - "tag:homelab"
-  - "tag:mgmt-backup"
 ts_accept_dns_by_host:
-  arm: true
-  n4000: true
-  n4200: true
+  n4000: false
+
 ts_advertise_exit_node_by_host:
-  n4000: true
-ts_force_reauth: false
-ts_reapply_on_each_run: true
-ts_apt_lock_timeout_seconds: 180
-```
-
-Run only this pass:
-
-```bash
-ansible-playbook playbooks/tailscale_backup_management.yml
+  n4000: false
 ```

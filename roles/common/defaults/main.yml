@@ -1,0 +1,15 @@
+---
+# Keep the daemon config explicit so a fresh host and an existing host converge
+# to the same bounded-log behavior. Add deliberate extensions in group vars.
+docker_daemon_config:
+  log-driver: json-file
+  log-opts:
+    max-size: 10m
+    max-file: '3'
+
+# SSH is key-based but PAM remains enabled so a future MFA/keyboard-interactive
+# policy is not silently disabled by the baseline.
+ssh_password_authentication: false
+ssh_kbd_interactive_authentication: true
+ssh_use_pam: true
+ssh_service_name: ssh

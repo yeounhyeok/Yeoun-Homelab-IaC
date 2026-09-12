@@ -1,10 +1,10 @@
 ---
-- name: Set Timezone to Asia/Seoul
-  ansible.builtin.timezone:
+- name: Set timezone to Asia/Seoul
+  community.general.timezone:
     name: Asia/Seoul
 
 - name: Enable IPv4 forwarding for Docker routing
-  ansible.builtin.sysctl:
+  ansible.posix.sysctl:
     name: net.ipv4.ip_forward
     value: '1'
     state: present
@@ -13,6 +13,8 @@
 - name: Configure APT network retries
   ansible.builtin.copy:
     dest: /etc/apt/apt.conf.d/99network-retry
+    owner: root
+    group: root
     mode: '0644'
     content: |
       Acquire::Retries "5";
@@ -21,27 +23,32 @@
       Acquire::ForceIPv4 "true";
 
 - name: Refresh APT cache with retry
-  ansible.builtin.command: apt-get update
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+    lock_timeout: 600
   register: apt_update_result
-  changed_when: false
+  until: apt_update_result is succeeded
   retries: 4
   delay: 5
-  until: apt_update_result.rc == 0
-
-- name: Install rsync
-  ansible.builtin.apt:
-    name: rsync
-    state: present
-    update_cache: false
 
 - name: Resolve Tailscale DNS policy for current host
   ansible.builtin.set_fact:
     ts_dns_enabled_on_host: "{{ (ts_accept_dns_by_host | default({})).get(inventory_hostname, ts_accept_dns_default | default(true)) | bool }}"
     resolver_mode: "{{ (resolver_mode_by_host | default({})).get(inventory_hostname, 'systemd-resolved') }}"
-    resolver_static_nameservers: "{{ (resolver_static_nameservers_by_host | default({})).get(inventory_hostname, resolver_fallback_nameservers | default(['1.1.1.1', '9.9.9.9'])) }}"
+    resolver_static_nameservers: >-
+      {{ (resolver_static_nameservers_by_host | default({})).get(
+         inventory_hostname,
+         resolver_fallback_nameservers | default(['1.1.1.1', '9.9.9.9'])) }}
 
-- name: Disable systemd-resolved for an explicitly static resolver host
-  ansible.builtin.service:
+- name: Validate resolver mode
+  ansible.builtin.assert:
+    that: resolver_mode in ['static', 'systemd-resolved']
+    fail_msg: "resolver_mode must be static or systemd-resolved, got {{ resolver_mode }}"
+  when: not ts_dns_enabled_on_host | bool
+
+- name: Stop systemd-resolved for an explicitly static resolver host
+  ansible.builtin.systemd:
     name: systemd-resolved
     state: stopped
     enabled: false
@@ -49,11 +56,24 @@
     - not ts_dns_enabled_on_host | bool
     - resolver_mode == 'static'
 
-- name: Install static resolver configuration for an explicitly static resolver host
+- name: Remove resolver symlink before installing static configuration
+  ansible.builtin.file:
+    path: /etc/resolv.conf
+    state: absent
+  when:
+    - not ts_dns_enabled_on_host | bool
+    - resolver_mode == 'static'
+
+- name: Install static resolver configuration
   ansible.builtin.copy:
     dest: /etc/resolv.conf
+    owner: root
+    group: root
     mode: '0644'
-    content: "{{ resolver_static_nameservers | map('regex_replace', '^(.*)$', 'nameserver \\1') | join('\\n') }}\\n"
+    content: |
+      {% for nameserver in resolver_static_nameservers %}
+      nameserver {{ nameserver }}
+      {% endfor %}
   when:
     - not ts_dns_enabled_on_host | bool
     - resolver_mode == 'static'
@@ -63,11 +83,25 @@
     path: /etc/systemd/resolved.conf
     regexp: '^#?DNS='
     line: "DNS={{ resolver_static_nameservers | join(' ') }}"
+    create: true
+    owner: root
+    group: root
+    mode: '0644'
+  register: resolved_config
   when:
     - not ts_dns_enabled_on_host | bool
     - resolver_mode == 'systemd-resolved'
 
-- name: Ensure systemd-resolved owns resolv.conf on resolver-managed hosts
+- name: Ensure systemd-resolved is enabled and running
+  ansible.builtin.systemd:
+    name: systemd-resolved
+    state: started
+    enabled: true
+  when:
+    - not ts_dns_enabled_on_host | bool
+    - resolver_mode == 'systemd-resolved'
+
+- name: Ensure systemd-resolved owns resolv.conf
   ansible.builtin.file:
     src: /run/systemd/resolve/stub-resolv.conf
     dest: /etc/resolv.conf
@@ -78,10 +112,10 @@
     - resolver_mode == 'systemd-resolved'
 
 - name: Restart systemd-resolved after fallback DNS changes
-  ansible.builtin.service:
+  ansible.builtin.systemd:
     name: systemd-resolved
     state: restarted
-    enabled: true
   when:
     - not ts_dns_enabled_on_host | bool
     - resolver_mode == 'systemd-resolved'
+    - resolved_config.changed | default(false)

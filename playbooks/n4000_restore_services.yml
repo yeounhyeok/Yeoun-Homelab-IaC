@@ -1,38 +1,13 @@
 ---
-# Run only after the verified backup has restored the selected compose projects
-# and their state. It intentionally never copies /var/lib/docker from the old OS.
+# Run only after the selected encrypted compose/config artifacts and native
+# database dumps have been restored and reviewed on the rebuilt n4000.
 - name: Start selected n4000 compose projects after state restoration
   hosts: n4000
   become: true
   gather_facts: false
   vars:
-    n4000_service_root: "/home/{{ ansible_user }}/docker_volumes"
-    n4000_restore_services: []
-  tasks:
-    - name: Require an explicit service allow-list
-      ansible.builtin.assert:
-        that:
-          - n4000_restore_services | length > 0
-        fail_msg: >-
-          Refusing to start every project implicitly. Pass, for example,
-          -e '{"n4000_restore_services":["adguardhome","nginx-proxy-manager"]}'.
-
-    - name: Verify restored compose project directories exist
-      ansible.builtin.stat:
-        path: "{{ n4000_service_root }}/{{ item }}/docker-compose.yml"
-      loop: "{{ n4000_restore_services }}"
-      register: n4000_restore_compose_files
-
-    - name: Stop before an incomplete restore can start services
-      ansible.builtin.assert:
-        that: item.stat.exists
-        fail_msg: "Missing restored compose file: {{ item.stat.path }}"
-      loop: "{{ n4000_restore_compose_files.results }}"
-
-    - name: Start explicitly restored compose projects
-      community.docker.docker_compose_v2:
-        project_src: "{{ n4000_service_root }}/{{ item }}"
-        state: present
-        pull: missing
-        remove_orphans: false
-      loop: "{{ n4000_restore_services }}"
+    compose_restore_service_root: "/home/{{ ansible_user }}/docker_volumes"
+    compose_restore_services: []
+  roles:
+    - role: compose_restore
+      tags: [restore]

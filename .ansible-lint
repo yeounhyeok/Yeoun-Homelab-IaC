@@ -1,0 +1,6 @@
+---
+profile: moderate
+skip_list:
+  # These are established role APIs exposed through inventory and host_vars.
+  # Renaming them would be a breaking change unrelated to this refactor.
+  - var-naming[no-role-prefix]

@@ -1,0 +1,46 @@
+---
+- name: Require an explicit compose restore allow-list
+  ansible.builtin.assert:
+    that:
+      - compose_restore_services is iterable
+      - compose_restore_services is not string
+      - compose_restore_services | length > 0
+    fail_msg: >-
+      Refusing to start services without compose_restore_services. Restore state
+      first, then pass an explicit service list.
+
+- name: Find a compose manifest in every selected project
+  ansible.builtin.find:
+    paths: "{{ compose_restore_service_root }}/{{ item }}"
+    patterns:
+      - docker-compose.yml
+      - compose.yaml
+      - compose.yml
+    file_type: file
+    recurse: false
+  loop: "{{ compose_restore_services }}"
+  loop_control:
+    label: "{{ item }}"
+  register: compose_restore_manifests
+
+- name: Stop before an incomplete restore can start services
+  ansible.builtin.assert:
+    that: item.matched | int > 0
+    fail_msg: >-
+      Missing compose manifest in restored project:
+      {{ compose_restore_service_root }}/{{ item.item }}
+  loop: "{{ compose_restore_manifests.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Start explicitly restored compose projects
+  community.docker.docker_compose_v2:
+    project_src: "{{ compose_restore_service_root }}/{{ item.item }}"
+    pull: "{{ compose_restore_pull }}"
+    remove_orphans: "{{ compose_restore_remove_orphans }}"
+    state: present
+    wait: "{{ compose_restore_wait }}"
+    wait_timeout: "{{ compose_restore_wait_timeout }}"
+  loop: "{{ compose_restore_manifests.results }}"
+  loop_control:
+    label: "{{ item.item }}"
