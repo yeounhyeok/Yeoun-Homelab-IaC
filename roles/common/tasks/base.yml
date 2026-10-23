@@ -9,6 +9,7 @@
     value: '1'
     state: present
     reload: true
+  when: common_ip_forward_persist | bool
 
 - name: Configure APT network retries
   ansible.builtin.copy:
@@ -21,6 +22,7 @@
       Acquire::http::Timeout "20";
       Acquire::https::Timeout "20";
       Acquire::ForceIPv4 "true";
+  when: common_apt_retry_manage | bool
 
 - name: Refresh APT cache with retry
   ansible.builtin.apt:
@@ -28,6 +30,8 @@
     cache_valid_time: 3600
     lock_timeout: 600
   register: apt_update_result
+  # Refreshing package lists is not a configuration change.
+  changed_when: false
   until: apt_update_result is succeeded
   retries: 4
   delay: 5

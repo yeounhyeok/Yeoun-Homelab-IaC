@@ -1,3 +1,17 @@
 ---
-# Tailscale은 Windows 호스트에서 돈다(100.65.253.68). WSL 안에는 설치하지 않는다.
+# lab = WSL2 Ubuntu 24.04 on a lab-owned Windows PC (SSD owned by Yeoun).
+# Tailscale runs on the Windows host (100.65.253.68); not inside WSL.
 ts_enabled: false
+# Docker was installed from Docker's docs: key at /etc/apt/keyrings/docker.asc.
+docker_apt_keyring: /etc/apt/keyrings/docker.asc
+# No live-restore here (WSL restarts the whole VM anyway).
+docker_daemon_config:
+  log-driver: json-file
+  log-opts:
+    max-size: 10m
+    max-file: '3'
+# sshd policy lives in /etc/ssh/sshd_config.d/10-ansible.conf (port 2222, key-only).
+ssh_policy_manage: false
+# WSL: Docker sets ip_forward at runtime; no apt retry file was ever installed.
+common_ip_forward_persist: false
+common_apt_retry_manage: false

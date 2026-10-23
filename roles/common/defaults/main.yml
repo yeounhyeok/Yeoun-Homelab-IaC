@@ -6,14 +6,29 @@ docker_daemon_config:
   log-opts:
     max-size: 10m
     max-file: '3'
+  # Containers keep running while dockerd restarts/upgrades (2026-10 실측: arm·n4000·n4200).
+  live-restore: true
+
+# Docker APT keyring/repository paths. Hosts installed from Docker's docs use
+# /etc/apt/keyrings/docker.asc instead; override per host so the role never
+# writes a second docker.list with a conflicting Signed-By.
+docker_apt_keyring: /usr/share/keyrings/docker-archive-keyring.asc
+# Re-downloading the key on every run is not idempotent; keep false.
+docker_apt_keyring_force: false
 
 # Baseline callers may install Docker without starting it until storage and
 # restore preflights have passed.
 docker_service_manage: true
 
-# SSH is key-based but PAM remains enabled so a future MFA/keyboard-interactive
-# policy is not silently disabled by the baseline.
+# SSH policy recorded from the live hosts (2026-10-22): key-only, PAM and
+# keyboard-interactive disabled. Enabling MFA later is a deliberate change.
+ssh_policy_manage: true
 ssh_password_authentication: false
-ssh_kbd_interactive_authentication: true
-ssh_use_pam: true
+ssh_kbd_interactive_authentication: false
+ssh_use_pam: false
 ssh_service_name: ssh
+
+# Persist net.ipv4.ip_forward in sysctl (Docker also sets it at runtime).
+common_ip_forward_persist: true
+# Write /etc/apt/apt.conf.d/99network-retry.
+common_apt_retry_manage: true

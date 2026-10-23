@@ -21,19 +21,27 @@
     group: root
     mode: '0755'
 
+- name: Check whether the Docker repository keyring exists
+  ansible.builtin.stat:
+    path: "{{ docker_apt_keyring }}"
+  register: docker_keyring_stat
+
+# get_url cannot predict check-mode results (it compares to an empty file), so
+# only download when the key is missing or a refresh is explicitly forced.
 - name: Install the Docker repository keyring
   ansible.builtin.get_url:
     url: https://download.docker.com/linux/ubuntu/gpg
-    dest: /usr/share/keyrings/docker-archive-keyring.asc
+    dest: "{{ docker_apt_keyring }}"
     owner: root
     group: root
     mode: '0644'
-    force: true
+    force: "{{ docker_apt_keyring_force | bool }}"
     timeout: 20
   register: docker_key_download
   retries: 3
   delay: 5
   until: docker_key_download is succeeded
+  when: not docker_keyring_stat.stat.exists or docker_apt_keyring_force | bool
 
 - name: Resolve Docker APT architecture
   ansible.builtin.set_fact:
@@ -46,7 +54,7 @@
     filename: docker
     repo: >-
       deb [arch={{ docker_apt_arch }}
-      signed-by=/usr/share/keyrings/docker-archive-keyring.asc]
+      signed-by={{ docker_apt_keyring }}]
       https://download.docker.com/linux/ubuntu
       {{ ansible_facts['distribution_release'] }} stable
     state: present
@@ -72,6 +80,20 @@
   retries: 5
   delay: 10
 
+- name: Read the current Docker daemon configuration
+  ansible.builtin.slurp:
+    src: /etc/docker/daemon.json
+  register: docker_daemon_current_raw
+  failed_when: false
+
+# Compare parsed JSON, not bytes: a whitespace-only rewrite would otherwise
+# restart dockerd (and every container without live-restore).
+- name: Decide whether daemon.json differs semantically
+  ansible.builtin.set_fact:
+    docker_daemon_needs_write: >-
+      {{ docker_daemon_current_raw.content is not defined
+         or (docker_daemon_current_raw.content | b64decode | from_json) != docker_daemon_config }}
+
 - name: Configure Docker daemon logging
   ansible.builtin.copy:
     dest: /etc/docker/daemon.json
@@ -79,6 +101,7 @@
     group: root
     mode: '0644'
     content: "{{ docker_daemon_config | to_nice_json }}\n"
+  when: docker_daemon_needs_write | bool
   notify: Restart Docker after daemon configuration changes
 
 - name: Ensure Docker is enabled and started

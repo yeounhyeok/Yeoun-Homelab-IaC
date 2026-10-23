@@ -1,4 +1,7 @@
 ---
+# Off by default; enable per host after review (2026-10-22: only n4200 runs zram).
+ram_optimization_enabled: false
+
 # zram swap size as percentage of total RAM
 zram_percent: 50
 zram_algorithm: zstd

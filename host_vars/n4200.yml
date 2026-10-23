@@ -1,0 +1,3 @@
+---
+# zram swap is active here (zstd, 50%, swappiness 100) since before 2026-10.
+ram_optimization_enabled: true

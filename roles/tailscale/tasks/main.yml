@@ -37,6 +37,14 @@
         group: root
         mode: '0755'
 
+    - name: Check existing Tailscale APT files
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - /usr/share/keyrings/tailscale-archive-keyring.gpg
+        - /etc/apt/sources.list.d/tailscale.list
+      register: ts_apt_files
+
     - name: Install Tailscale repository keyring
       ansible.builtin.get_url:
         url: "https://pkgs.tailscale.com/stable/{{ ts_repo_distribution }}/{{ ansible_facts['distribution_release'] }}.noarmor.gpg"
@@ -44,6 +52,7 @@
         owner: root
         group: root
         mode: '0644'
+      when: not ts_apt_files.results[0].stat.exists
 
     - name: Configure Tailscale repository
       ansible.builtin.get_url:
@@ -52,6 +61,7 @@
         owner: root
         group: root
         mode: '0644'
+      when: not ts_apt_files.results[1].stat.exists
 
     - name: Install Tailscale package
       ansible.builtin.apt:
@@ -76,6 +86,7 @@
 
     - name: Check current Tailscale status
       ansible.builtin.command: tailscale status --json
+      check_mode: false
       register: ts_status
       changed_when: false
       failed_when: false
@@ -134,10 +145,12 @@
 
     - name: Validate Tailscale responds
       ansible.builtin.command: tailscale version
+      check_mode: false
       changed_when: false
 
     - name: Validate this node has a Tailnet IPv4 address
       ansible.builtin.command: tailscale ip -4
+      check_mode: false
       register: ts_ipv4
       changed_when: false
       failed_when: ts_ipv4.rc != 0

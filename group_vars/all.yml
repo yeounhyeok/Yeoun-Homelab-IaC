@@ -1,10 +1,13 @@
 ---
 # Network and resolver policy. Application storage is not configured here.
 
-# n4000 must not bootstrap through a DNS service hosted on itself.
+# 2026-10-22: every node, including n4000, accepts Tailscale MagicDNS
+# (resolv.conf -> 100.100.100.100). NPM on n4000 resolves *.soay-quail.ts.net
+# upstreams through it, so forcing a static resolver there breaks routing.
+# Known risk to revisit: if the tailnet's global DNS points at n4000's own
+# AdGuard, n4000 depends on itself for name resolution.
 ts_accept_dns_default: true
-ts_accept_dns_by_host:
-  n4000: false
+ts_accept_dns_by_host: {}
 
 ts_advertise_exit_node_by_host:
   n4000: false
