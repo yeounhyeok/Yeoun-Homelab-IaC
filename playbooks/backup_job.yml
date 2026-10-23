@@ -1,0 +1,18 @@
+---
+# Deploy the weekly backup job scripts to arm. The Hermes cron job
+# 'homelab-weekly-db-backup' (Sun 04:00 KST) runs ~/.hermes/scripts/homelab_weekly_backup.sh.
+#   ansible-playbook playbooks/backup_job.yml --check --diff   # then without --check
+- name: Weekly backup job (runs on arm via Hermes cron)
+  hosts: arm
+  become: false
+  gather_facts: false
+  tasks:
+    - name: Install backup scripts
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../backup/{{ item.name }}"
+        dest: "/home/{{ ansible_user }}/.hermes/scripts/{{ item.name }}"
+        mode: "{{ item.mode }}"
+        backup: true
+      loop:
+        - { name: homelab_weekly_backup.sh, mode: '0775' }
+        - { name: _sqlite_snap.py, mode: '0664' }
