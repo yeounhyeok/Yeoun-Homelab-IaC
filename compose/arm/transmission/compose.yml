@@ -1,0 +1,19 @@
+# Managed in Yeoun-Homelab-IaC (compose/arm/transmission).
+services:
+  transmission:
+    image: lscr.io/linuxserver/transmission:latest
+    container_name: transmission
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Asia/Seoul
+      - TRANSMISSION_DOWNLOAD_DIR=/downloads/complete
+      - TRANSMISSION_INCOMPLETE_DIR=/downloads/incomplete
+    ports:
+      - 9091:9091
+      - 51413:51413
+      - 51413:51413/udp
+    volumes:
+      - ./config:/config
+      - /mnt/nfs/media/downloads:/downloads
+    restart: unless-stopped

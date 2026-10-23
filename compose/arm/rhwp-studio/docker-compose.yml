@@ -1,0 +1,16 @@
+# Managed in Yeoun-Homelab-IaC (compose/arm/rhwp-studio).
+services:
+  rhwp-studio:
+    image: nginx:1.27-alpine
+    container_name: rhwp-studio
+    restart: unless-stopped
+    ports:
+      - "100.117.250.54:8097:80"
+    volumes:
+      - ./site:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

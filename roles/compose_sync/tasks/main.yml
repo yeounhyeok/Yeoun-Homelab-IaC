@@ -1,0 +1,13 @@
+---
+- name: Select compose projects for this run
+  ansible.builtin.set_fact:
+    compose_selected: >-
+      {{ compose_projects if (compose_only | length == 0)
+         else compose_projects | selectattr('name', 'in', compose_only.split(',')) | list }}
+
+- name: Sync each compose project (verify first, never restarts containers)
+  ansible.builtin.include_tasks: project.yml
+  loop: "{{ compose_selected }}"
+  loop_control:
+    loop_var: proj
+    label: "{{ proj.name }}"

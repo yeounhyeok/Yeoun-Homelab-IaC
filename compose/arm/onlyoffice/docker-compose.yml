@@ -1,0 +1,61 @@
+# Managed in Yeoun-Homelab-IaC (compose/arm/onlyoffice). Secrets are ${VAR} only;
+# values live in Vaultwarden item 'homelab/arm/onlyoffice' and are rendered into .env by Ansible.
+services:
+  onlyoffice-documentserver:
+    image: onlyoffice/documentserver:latest
+    container_name: onlyoffice-documentserver
+    depends_on:
+      onlyoffice-rabbitmq:
+        condition: service_started
+    environment:
+      - DB_TYPE=postgres
+      - DB_HOST=100.117.250.54
+      - DB_PORT=5433
+      - DB_NAME=onlyoffice_db
+      - DB_USER=onlyoffice
+      - DB_PWD=onlyoffice_pass
+      - AMQP_URI=amqp://guest:guest@onlyoffice-rabbitmq
+      - JWT_ENABLED=true
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_HEADER=Authorization
+      - JWT_IN_BODY=true
+    ports:
+      - '880:80'
+      - '4443:443'
+    healthcheck:
+      # Nginx(80)를 거치지 않고 백엔드(8000) Health 엔드포인트에 직접 요청
+      test: ["CMD", "curl", "-f", "http://localhost:8000/healthcheck"]
+      interval: 30s
+      retries: 5
+      start_period: 90s
+      timeout: 10s
+    restart: unless-stopped
+    volumes:
+       - oo_data:/var/www/onlyoffice/Data
+       - oo_log:/var/log/onlyoffice
+       - oo_cache:/var/lib/onlyoffice/documentserver/App_Data/cache/files
+       - oo_fonts:/usr/share/fonts
+    networks: # <--- 추가
+      - cloud
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.5'
+
+  onlyoffice-rabbitmq:
+    container_name: onlyoffice-rabbitmq
+    image: rabbitmq:3-management
+    restart: unless-stopped
+    networks:
+      - cloud
+
+volumes:
+  oo_data:
+  oo_log:
+  oo_cache:
+  oo_fonts:
+
+networks:
+  cloud:
+    driver: bridge

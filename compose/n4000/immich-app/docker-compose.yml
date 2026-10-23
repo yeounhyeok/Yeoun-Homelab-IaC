@@ -1,0 +1,66 @@
+# Managed in Yeoun-Homelab-IaC (compose/n4000/immich-app). Secrets are ${VAR} only;
+# values live in Vaultwarden item 'homelab/n4000/immich-app' and are rendered into .env by Ansible.
+services:
+  immich-server:
+    container_name: immich_server
+    labels:
+      - com.centurylinklabs.watchtower.enable=true   # 2026-10-16 opt-in (DB/redis는 제외)
+    image: ghcr.io/immich-app/immich-server:${IMMICH_VERSION:-release}
+    devices:
+      - /dev/dri:/dev/dri   # ← 여기에 위치해야 함
+    volumes:
+      - type: bind   # 2026-10-16: HDD 미마운트 시 빈 폴더로 기동 방지
+        source: ${UPLOAD_LOCATION}
+        target: /usr/src/app/upload
+        bind:
+          create_host_path: false
+      - ./thumbs:/usr/src/app/upload/thumbs   # 2026-10-16 eMMC (HDD seek 회피). HDD 원본: thumbs.moved-to-emmc-20261016
+      - /etc/localtime:/etc/localtime:ro
+        #   - /home/yeoun/usb:/import/additional_videos
+    env_file:
+      - .env
+    ports:
+      - '2283:2283'
+    depends_on:
+      - redis
+      - database
+#      - immich-machine-learning
+    restart: always
+    healthcheck:
+      disable: false
+#    extra_hosts:
+#      - "auth.yeoun.org:10.0.1.9"
+
+
+
+  redis:
+    container_name: immich_redis
+    image: docker.io/valkey/valkey:8@sha256:81db6d39e1bba3b3ff32bd3a1b19a6d69690f94a3954ec131277b9a26b95b3aa
+    healthcheck:
+      test: redis-cli ping || exit 1
+    restart: always
+
+
+  database:
+    container_name: immich_postgres
+    image: ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0@sha256:bcf63357191b76a916ae5eb93464d65c07511da41e3bf7a8416db519b40b1c23
+    environment:
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_DB: ${DB_DATABASE_NAME}
+      POSTGRES_INITDB_ARGS: '--data-checksums'
+    command: ["postgres", "-c", "max_connections=200", "-c", "shared_preload_libraries=vchord"]
+    volumes:
+      - ${DB_DATA_LOCATION}:/var/lib/postgresql/data
+    shm_size: 128mb
+    mem_limit: 1g
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+volumes:
+  model-cache: {}

@@ -1,0 +1,8 @@
+# Managed in Yeoun-Homelab-IaC (compose/n4200/astro-blog).
+services:
+  astro-blog:
+    build: .
+    container_name: astro-blog
+    restart: always
+    ports:
+      - "8084:80"

@@ -1,0 +1,11 @@
+# Managed in Yeoun-Homelab-IaC (compose/arm/mc-forward).
+services:
+  mc-forward:
+    image: haproxy:lts-alpine
+    container_name: mc-forward
+    restart: unless-stopped
+    ports:
+      - "25565:25565"
+    volumes:
+      - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+      - ./blocklist.lst:/usr/local/etc/haproxy/blocklist.lst:ro

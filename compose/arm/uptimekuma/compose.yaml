@@ -1,0 +1,14 @@
+# Managed in Yeoun-Homelab-IaC (compose/arm/uptimekuma).
+services:
+  uptime-kuma:
+    image: louislam/uptime-kuma
+    container_name: uptimekuma
+    restart: unless-stopped
+    user: "1000:1000"
+
+    # 추가: Entrypoint 스크립트를 무시하고 바로 실행
+    entrypoint: ["node", "server/server.js"]
+    volumes:
+      - ./data:/app/data
+    ports:
+      - "3001:3001"

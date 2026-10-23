@@ -1,0 +1,26 @@
+# Managed in Yeoun-Homelab-IaC (compose/arm/nginx-proxy-manager).
+services:
+  nginx-proxy-manager:
+    profiles: ["disabled"]
+    image: jc21/nginx-proxy-manager:2.15.1
+    container_name: nginx-proxy-manager
+    restart: always
+
+    # 🚨 볼륨: 새 통합 경로 적용
+    volumes:
+      - ./data:/data
+      - ./letsencrypt:/etc/letsencrypt
+      - ./json_logs.conf:/etc/nginx/conf.d/json_logs.conf
+    # 🚨 포트: 기본 설정 (NPM 관리 UI 81, 외부 접속 80/443)
+    ports:
+      # HTTP 포트
+      - "127.0.0.1:80:80"
+      # HTTPS stays private; Cloudflare Tunnel terminates public TLS.
+      - "127.0.0.1:443:443"
+      # NPM UI is tunnel-only, never directly exposed from OCI.
+      - "127.0.0.1:81:81"
+
+    # 환경 변수 (MySQL 대신 SQLite를 사용할 경우 필요 없음)
+    # environment:
+    #   DB_MYSQL_HOST: "..." # 외부 DB 사용 시 필요
+    #   DB_MYSQL_USER: "..."

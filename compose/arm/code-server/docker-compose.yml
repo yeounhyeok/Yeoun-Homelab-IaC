@@ -1,0 +1,24 @@
+# Managed in Yeoun-Homelab-IaC (compose/arm/code-server). Secrets are ${VAR} only;
+# values live in Vaultwarden item 'homelab/arm/code-server' and are rendered into .env by Ansible.
+services:
+  code-server:
+    image: lscr.io/linuxserver/code-server:latest
+    container_name: code-server
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Asia/Seoul
+      #- PASSWORD=<removed-secret>
+      - SUDO_PASSWORD=${SUDO_PASSWORD}
+      - SUDO_PASSWORD_HASH= #optional
+      - PROXY_DOMAIN=code.yeoun.org #optional
+        #      - DEFAULT_WORKSPACE=/config/workspace #optional
+      - PWA_APPNAME=VSCode #optional
+     
+    volumes:
+      - /path/to/code-server/config:/config
+      - /home/yeoun:/yeoun
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - 8443:8443
+    restart: unless-stopped

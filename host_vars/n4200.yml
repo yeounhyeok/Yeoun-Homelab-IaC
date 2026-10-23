@@ -1,3 +1,16 @@
 ---
 # zram swap is active here (zstd, 50%, swappiness 100) since before 2026-10.
 ram_optimization_enabled: true
+
+# Compose projects tracked in compose/n4200/ (2026-10-22 import).
+compose_projects:
+  - { name: glances, dir: docker_volumes/glances, file: compose.yml }
+  - { name: home-assistant, dir: docker_volumes/home-assistant, file: compose.yml }
+  - { name: homepage, dir: docker_volumes/homepage, file: docker-compose.yml, secrets: true }
+  - { name: jellyfin, dir: docker_volumes/jellyfin, file: docker-compose.yml }
+  - { name: monitoring-agent, dir: docker_volumes/monitoring-agent, file: docker-compose.yml }
+  - { name: open-webui, dir: docker_volumes/open-webui, file: docker-compose.yml, secrets: true }
+  - { name: quartz, dir: docker_volumes/quartz, file: docker-compose.yml }
+  - { name: syncthing_n4200, dir: docker_volumes/syncthing_n4200, file: docker-compose.yml }
+  - { name: vikunja, dir: docker_volumes/vikunja, file: docker-compose.yml, secrets: true }
+  - { name: astro-blog, dir: services/astro-blog, file: compose.yml }

@@ -1,0 +1,65 @@
+# Managed in Yeoun-Homelab-IaC (compose/arm/authentik). Secrets are ${VAR} only;
+# values live in Vaultwarden item 'homelab/arm/authentik' and are rendered into .env by Ansible.
+services:
+  server:
+    command: server
+    env_file:
+    - .env
+    
+    environment:
+      UVICORN_WORKERS: 1
+      AUTHENTIK_POSTGRESQL__HOST: 100.117.250.54
+      AUTHENTIK_POSTGRESQL__PORT: 5433
+      AUTHENTIK_POSTGRESQL__NAME: authentik_db
+      AUTHENTIK_POSTGRESQL__PASSWORD: ${PG_PASS}
+      AUTHENTIK_POSTGRESQL__USER: authentik
+      AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY:?secret key required}
+    image: ${AUTHENTIK_IMAGE:-ghcr.io/goauthentik/server}:${AUTHENTIK_TAG:-2025.10.2}
+    ports:
+    - ${COMPOSE_PORT_HTTP:-9880}:9000
+    #- ${COMPOSE_PORT_HTTPS:-9443}:9443
+    restart: always
+    volumes:
+    - ./media:/media
+    - ./custom-templates:/templates
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    deploy:
+      resources:
+        limits:
+          # OOM 방지: 1GB로 상향
+          memory: 1024M
+  worker:
+    command: worker
+    env_file:
+    - .env
+    environment:
+      AUTHENTIK_POSTGRESQL__HOST: 100.117.250.54
+      AUTHENTIK_POSTGRESQL__PORT: 5433
+      AUTHENTIK_POSTGRESQL__NAME: authentik_db
+      AUTHENTIK_POSTGRESQL__PASSWORD: ${PG_PASS}
+      AUTHENTIK_POSTGRESQL__USER: authentik
+      AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY:?secret key required}
+      # OOM 방지: worker 동시성 제한 (2026-07-22)
+      AUTHENTIK_WORKERS__DEFAULT: 2
+    image: ${AUTHENTIK_IMAGE:-ghcr.io/goauthentik/server}:${AUTHENTIK_TAG:-2025.10.2}
+    restart: always
+    user: root
+    sysctls:
+      net.ipv6.conf.all.disable_ipv6: 1
+      net.ipv6.conf.default.disable_ipv6: 1
+    volumes:
+    - /var/run/docker.sock:/var/run/docker.sock
+    - ./media:/media
+    - ./certs:/certs
+    - ./custom-templates:/templates
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    deploy:
+      resources:
+        limits:
+          # OOM 방지: 6GB로 상향 (2026-07-22)
+          memory: 6144M
+    

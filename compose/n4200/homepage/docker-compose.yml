@@ -1,0 +1,26 @@
+# Managed in Yeoun-Homelab-IaC (compose/n4200/homepage). Secrets are ${VAR} only;
+# values live in Vaultwarden item 'homelab/n4200/homepage' and are rendered into .env by Ansible.
+services:
+  homepage:
+    image: ghcr.io/gethomepage/homepage:latest
+    container_name: homepage
+    restart: always
+    ports:
+      - 3000:3000
+#    privileged: true
+    volumes:
+      - ./config:/app/config # Make sure your local config directory exists
+      #- /var/run/docker.sock:/var/run/docker.sock # (optional) For docker integrations
+      - /home/yeoun/usb/:/mnt/ext_drive
+    environment:
+      HOMEPAGE_ALLOWED_HOSTS: home.yeoun.org # required, may need port. See gethomepage.dev/installation/#homepage_allowed_hosts
+    networks:
+      - default
+      - open-webui
+    dns:
+      - 100.124.4.110  # AdGuard Home의 내부 IP 주소
+
+networks:
+  open-webui:
+    name: open-webui
+    external: true

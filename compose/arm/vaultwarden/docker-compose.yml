@@ -1,0 +1,33 @@
+# Managed in Yeoun-Homelab-IaC (compose/arm/vaultwarden).
+services:
+  vaultwarden:
+    container_name: vaultwarden
+    image: vaultwarden/server:latest
+    restart: always
+    ports:
+      - 100.117.250.54:8090:80
+    volumes:
+      - ./data:/data
+    environment:
+      - TZ=Asia/Seoul
+      - DOMAIN=https://vault.yeoun.org
+      - WEBSOCKET_ENABLED=true
+      - SIGNUPS_ALLOWED=false
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+
+  watchtower:
+    container_name: watchtower
+    image: containrrr/watchtower:latest
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - DOCKER_API_VERSION=1.55
+      - WATCHTOWER_SCHEDULE=0 0 19 * * 6
+      - WATCHTOWER_LABEL_ENABLE=true
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_INCLUDE_RESTARTING=true
+      - TZ=Asia/Seoul
+    labels:
+      - com.centurylinklabs.watchtower.disable=true

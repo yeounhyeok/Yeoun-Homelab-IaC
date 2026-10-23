@@ -1,0 +1,11 @@
+# Managed in Yeoun-Homelab-IaC (compose/arm/adguardhome-secondary).
+services:
+  adguardhome:
+    image: adguard/adguardhome@sha256:aba9e3bf0613be3ba3755e1fc311b126e2c24bec25e18b6483894a88283074f0
+    container_name: adguardhome-secondary
+    network_mode: host
+    restart: always
+    volumes:
+      - /home/ubuntu/docker_volumes/adguardhome-secondary/work:/opt/adguardhome/work
+      - /home/ubuntu/docker_volumes/adguardhome-secondary/conf:/opt/adguardhome/conf
+    command: ["--no-check-update", "--config", "/opt/adguardhome/conf/AdGuardHome.yaml", "--work-dir", "/opt/adguardhome/work", "--web-addr", "100.117.250.54:9394"]

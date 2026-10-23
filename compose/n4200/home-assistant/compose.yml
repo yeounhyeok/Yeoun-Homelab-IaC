@@ -1,0 +1,28 @@
+# Managed in Yeoun-Homelab-IaC (compose/n4200/home-assistant).
+services:
+  # 1. Home Assistant Core
+  homeassistant:
+    container_name: homeassistant
+    image: ghcr.io/home-assistant/home-assistant:stable
+    volumes:
+      - ./config:/config
+      - /etc/localtime:/etc/localtime:ro
+    restart: always
+    privileged: true
+    network_mode: host # Matter와 mDNS 탐색을 위해 필수
+    environment:
+      - TZ=Asia/Seoul
+
+  # 2. Matter Server (Matter 기기와의 통신 담당)
+  matter-server:
+    container_name: matter-server
+    image: ghcr.io/home-assistant-libs/python-matter-server:stable
+    command: ["--storage-path", "/data", "--paa-root-cert-dir", "/data/credentials", "--primary-interface", "wlp1s0"]
+    restart: always
+    privileged: true
+    network_mode: host
+    volumes:
+      - ./matter-data:/data
+      - /run/dbus:/run/dbus:ro # 블루투스 접근용
+    environment:
+      - TZ=Asia/Seoul

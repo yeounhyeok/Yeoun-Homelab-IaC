@@ -1,0 +1,16 @@
+# Managed in Yeoun-Homelab-IaC (compose/arm/glances).
+services:
+  glances:
+    image: nicolargo/glances:latest-full
+    container_name: glances
+    restart: unless-stopped
+    pid: host
+    network_mode: host
+    mem_limit: 256m
+    environment:
+      GLANCES_OPT: "-w -B 100.117.250.54 -p 61208 --disable-plugin docker,containers"
+    volumes:
+      - /etc/os-release:/etc/os-release:ro
+    logging:
+      driver: json-file
+      options: {max-size: "5m", max-file: "2"}

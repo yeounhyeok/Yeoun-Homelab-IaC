@@ -1,0 +1,12 @@
+---
+# compose_projects (host_vars): list of {name, dir, file, secrets, extra_files}
+#   dir is relative to the remote user's home; secrets=true renders env files
+#   from Vaultwarden item 'homelab/<inventory_hostname>/<name>'.
+compose_projects: []
+# Limit to some projects: -e compose_only=immich-app,vikunja
+compose_only: ""
+# Default is verify-only. With apply=true files are replaced ONLY when the
+# rendered `docker compose config` and every env file are semantically equal
+# to what is running now. Containers are never (re)started by this role.
+compose_sync_apply: false
+compose_home: "/home/{{ ansible_user }}"

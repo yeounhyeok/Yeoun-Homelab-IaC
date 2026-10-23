@@ -1,0 +1,32 @@
+# Managed in Yeoun-Homelab-IaC (compose/n4000/obsidian-mcp-vilab). Secrets are ${VAR} only;
+# values live in Vaultwarden item 'homelab/n4000/obsidian-mcp-vilab' and are rendered into .env by Ansible.
+services:
+  obsidian-mcp-vilab:
+    build: .
+    image: obsidian-mcp-vilab:2026-09-02
+    container_name: obsidian-mcp-vilab
+    env_file:
+      - .env
+    environment:
+      - VAULT_PATH=/vault
+      - VAULT_MCP_HOST=0.0.0.0
+      - VAULT_MCP_PORT=8422
+      - VAULT_MCP_PUBLIC_URL=https://vilab.yeoun.org
+      - VAULT_MCP_PATH=/mcp
+      - VAULT_MCP_ALLOWED_HOSTS=vilab.yeoun.org
+    volumes:
+      - type: bind   # 2026-10-16: HDD 미마운트 시 빈 폴더로 기동 방지
+        source: /mnt/usb/yeoun_Desktop/Obsidian/3DGS_Research_MOC
+        target: /vault
+        bind:
+          create_host_path: false
+    ports:
+      - "127.0.0.1:8422:8422"
+    restart: always
+    networks:
+      - default
+      - nginx-proxy-manager_default
+
+networks:
+  nginx-proxy-manager_default:
+    external: true

@@ -1,0 +1,19 @@
+# Managed in Yeoun-Homelab-IaC (compose/n4000/filebrowser-quantum).
+services:
+  filebrowser:
+    image: ghcr.io/gtsteffaniak/filebrowser:stable
+    container_name: filebrowser-quantum
+    user: "1000:1000"
+    ports:
+      - "8098:80"
+    environment:
+      FILEBROWSER_CONFIG: "data/config.yaml"
+      FILEBROWSER_DATABASE_PATH: "data/filebrowser.sqlite"
+    volumes:
+      - ./data:/home/filebrowser/data
+      - /home/yeoun/docs:/srv/home/docs
+      - /home/yeoun/archive:/srv/home/archive
+      - /home/yeoun/work:/srv/home/work
+      - /home/yeoun/scripts:/srv/home/scripts
+      - /mnt/usb:/srv/usb
+    restart: unless-stopped

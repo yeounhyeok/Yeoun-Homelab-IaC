@@ -1,0 +1,10 @@
+# Managed in Yeoun-Homelab-IaC (compose/n4200/quartz).
+services:
+  quartz:
+    build: .
+    container_name: quartz
+    volumes:
+      - /home/yeoun/docker_volumes/syncthing_n4200/data/content:/usr/src/app/content:ro
+    ports:
+      - "8880:80"
+    restart: unless-stopped

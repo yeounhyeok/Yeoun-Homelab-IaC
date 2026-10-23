@@ -1,0 +1,16 @@
+# Managed in Yeoun-Homelab-IaC (compose/n4000/newslens).
+services:
+  newslens:
+    build:
+      context: ./src
+    image: newslens:backend-yeo
+    container_name: newslens
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: "1"
+      NEWSLENS_USE_MOCK: "1"
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+    ports:
+      - "127.0.0.1:3099:3000"

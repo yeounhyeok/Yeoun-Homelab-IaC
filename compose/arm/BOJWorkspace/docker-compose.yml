@@ -1,0 +1,22 @@
+# Managed in Yeoun-Homelab-IaC (compose/arm/BOJWorkspace).
+services:
+  c-workspace:
+    container_name: c-workspace
+    # 1. 빌드 컨텍스트 추가: 현재 디렉토리(.)의 Dockerfile을 기반으로 빌드
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # 2. 빌드된 이미지에 부여할 이름
+    image: c-workspace
+    volumes:
+      - ./:/home/dev/workspace:delegated
+      - ./vscode-server:/home/dev/.vscode-server
+    ports:
+      - "5000:5000"
+    tty: true
+    stdin_open: true
+    command: /bin/bash
+#    deploy:
+#      resources:
+#        limits:
+#          memory: 2G

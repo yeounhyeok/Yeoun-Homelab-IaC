@@ -1,0 +1,62 @@
+# Managed in Yeoun-Homelab-IaC (compose/lab/mcserver). Secrets are ${VAR} only;
+# values live in Vaultwarden item 'homelab/lab/mcserver' and are rendered into .env by Ansible.
+services:
+  mc-server:
+    image: itzg/minecraft-server:java21
+    container_name: mc-server
+    restart: unless-stopped
+    healthcheck:
+      disable: true
+    ports:
+      - "25565:25565"
+    environment:
+      EULA: "TRUE"
+      VERSION: "1.20.6"
+      TYPE: PAPER
+      MEMORY: "1536M"
+      
+      # [Aikar's Flags 적용]
+      # 3G 할당 시 최적화된 가비지 컬렉션(GC) 설정입니다.
+      JVM_OPTS: "-XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200 -XX:+UnlockExperimentalVMOptions -XX:+DisableExplicitGC -XX:+AlwaysPreTouch -XX:G1NewSizePercent=30 -XX:G1MaxNewSizePercent=40 -XX:G1HeapRegionSize=8M -XX:G1ReservePercent=20 -XX:G1HeapWastePercent=5 -XX:G1MixedGCCountTarget=4 -XX:InitiatingHeapOccupancyPercent=15 -XX:G1MixedGCLiveThresholdPercent=90 -XX:G1RSetUpdatingPauseTimePercent=5 -XX:SurvivorRatio=32 -XX:+PerfDisableSharedMem -XX:MaxTenuringThreshold=1"
+
+      # [사용자 관리]
+      OPS: "The_3rd_Noob"
+      WHITELIST: "The_3rd_Noob,Vishere"
+      ENABLE_WHITELIST: "TRUE"
+      ENFORCE_WHITELIST: "TRUE"
+
+      # [서버 설정]
+      MOTD: "저 기 요"
+      MAX_PLAYERS: "5"
+      VIEW_DISTANCE: "16" # 15는 꽤 높으므로 성능 모니터링이 필요합니다.
+      RCON_PASSWORD: ${RCON_PASSWORD}
+
+    volumes:
+      - ./data:/data
+      - ./mods:/data/mods
+      - ./plugins:/data/plugins
+
+
+    deploy:
+      resources:
+        limits:
+          memory: 2560M
+  backup:
+    image: itzg/mc-backup
+    container_name: mc-backup
+    restart: always
+    environment:
+      - SRC_DIR=/data
+      - DEST_DIR=/backups
+      - BACKUP_INTERVAL=24h
+      - INITIAL_DELAY=1m
+      - REMOVE_OLD_BACKUPS_AFTER=3
+      - RCON_HOST=mc-server
+      - RCON_PASSWORD=${RCON_PASSWORD}
+      - UID=1000
+      - GID=1000
+    volumes:
+      - ./data:/data:ro
+      - ./backups:/backups
+    depends_on:
+      - mc-server

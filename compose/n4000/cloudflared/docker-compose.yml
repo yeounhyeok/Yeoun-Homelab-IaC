@@ -1,0 +1,9 @@
+# Managed in Yeoun-Homelab-IaC (compose/n4000/cloudflared). Secrets are ${VAR} only;
+# values live in Vaultwarden item 'homelab/n4000/cloudflared' and are rendered into .env by Ansible.
+services:
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    restart: always
+    network_mode: host
+    command: tunnel --no-autoupdate run --token ${TUNNEL_TOKEN}

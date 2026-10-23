@@ -1,0 +1,55 @@
+# Managed in Yeoun-Homelab-IaC (compose/n4000/geometrikks). Secrets are ${VAR} only;
+# values live in Vaultwarden item 'homelab/n4000/geometrikks' and are rendered into .env by Ansible.
+# GeoMetrikks (2026-10-16) — NPM 접속 로그 → GeoIP 실시간 지도. https://github.com/GilbN/geometrikks
+# 로그: NPM custom/http_top.conf(log_format+map) + custom/server_proxy.conf(access_log) → data/logs/geometrikks_access.log
+# 비밀값: .env (600). 원본은 Vaultwarden 'Hermes .env' 필드 GEOIP_ID/GEOIP_KEY/GEOMETRIKKS_*.
+services:
+  timescale_db:
+    image: timescale/timescaledb-ha:pg18
+    container_name: geometrikks-db
+    restart: unless-stopped
+    shm_size: 256mb
+    mem_limit: 768m
+    command:
+      - -c
+      - timescaledb.max_background_workers=8   # upstream 기본 40 → 2코어 n4000에 맞춤
+      - -c
+      - max_parallel_workers=2
+      - -c
+      - max_worker_processes=16
+      - -c
+      - shared_buffers=128MB
+    environment:
+      POSTGRES_USER: geouser
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: geometrikks
+    volumes:
+      - ./db:/home/postgres/pgdata/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U geouser -d geometrikks"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  app:
+    image: ghcr.io/gilbn/geometrikks:latest
+    container_name: geometrikks
+    restart: unless-stopped
+    hostname: geometrikks
+    mem_limit: 512m
+    environment:
+      DB_HOST: timescale_db
+      DB_PASSWORD: ${DB_PASSWORD}
+      PUID: "1000"
+      PGID: "1000"
+    ports:
+      - "8000:8000"   # 집 LAN + Tailscale (공유기 NAT 뒤). 특정 IP 바인딩은 부팅 레이스 위험(퀵레퍼런스 함정)
+    env_file:
+      - .env
+    volumes:
+      - ./geoip:/app/data/geoip
+      - /home/yeoun/docker_volumes/nginx-proxy-manager/data/logs:/var/log/access:ro
+      - ./logs:/app/logs
+    depends_on:
+      timescale_db:
+        condition: service_healthy
+    stop_grace_period: 20s

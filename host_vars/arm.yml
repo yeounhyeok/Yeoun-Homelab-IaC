@@ -1,0 +1,18 @@
+---
+
+# Compose projects tracked in compose/arm/ (2026-10-22 import).
+compose_projects:
+  - { name: BOJWorkspace, dir: docker_volumes/BOJWorkspace, file: docker-compose.yml }
+  - { name: adguardhome-secondary, dir: docker_volumes/adguardhome-secondary, file: compose.yml }
+  - { name: authentik, dir: docker_volumes/authentik, file: docker-compose.yml, secrets: true }
+  - { name: code-server, dir: docker_volumes/code-server, file: docker-compose.yml, secrets: true }
+  - { name: glances, dir: docker_volumes/glances, file: compose.yml }
+  - { name: mc-forward, dir: docker_volumes/mc-forward, file: docker-compose.yml, extra_files: [haproxy.cfg, blocklist.lst] }
+  - { name: monitoring, dir: docker_volumes/monitoring, file: docker-compose.yml, secrets: true }
+  - { name: nginx-proxy-manager, dir: docker_volumes/nginx-proxy-manager, file: docker-compose.yml }
+  - { name: onlyoffice, dir: docker_volumes/onlyoffice, file: docker-compose.yml, secrets: true }
+  - { name: rhwp-studio, dir: docker_volumes/rhwp-studio, file: docker-compose.yml }
+  - { name: syncthing_arm, dir: docker_volumes/syncthing_arm, file: docker-compose.yml }
+  - { name: transmission, dir: docker_volumes/transmission, file: compose.yml }
+  - { name: uptimekuma, dir: docker_volumes/uptimekuma, file: compose.yaml }
+  - { name: vaultwarden, dir: docker_volumes/vaultwarden, file: docker-compose.yml }

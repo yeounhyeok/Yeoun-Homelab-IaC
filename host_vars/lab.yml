@@ -15,3 +15,9 @@ ssh_policy_manage: false
 # WSL: Docker sets ip_forward at runtime; no apt retry file was ever installed.
 common_ip_forward_persist: false
 common_apt_retry_manage: false
+
+# Compose projects tracked in compose/lab/ (2026-10-22 import).
+compose_projects:
+  - { name: immich-ml, dir: docker_volumes/immich-ml, file: docker-compose.yml }
+  - { name: mcserver, dir: docker_volumes/mcserver, file: docker-compose.yml, secrets: true }
+  - { name: monitoring-agent, dir: docker_volumes/monitoring-agent, file: docker-compose.yml }

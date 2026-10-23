@@ -1,0 +1,31 @@
+# Managed in Yeoun-Homelab-IaC (compose/n4000/obsidian-mcp). Secrets are ${VAR} only;
+# values live in Vaultwarden item 'homelab/n4000/obsidian-mcp' and are rendered into .env by Ansible.
+services:
+  obsidian-mcp:
+    build: .
+    container_name: obsidian-mcp
+    env_file:
+      - .env
+    environment:
+      - VAULT_PATH=/vault
+      - VAULT_MCP_HOST=0.0.0.0
+      - VAULT_MCP_PORT=8420
+      - VAULT_MCP_PUBLIC_URL=https://obsidian-mcp.yeoun.org
+      - VAULT_MCP_PATH=/mcp
+      - VAULT_MCP_ALLOWED_HOSTS=obsidian-mcp.yeoun.org
+    volumes:
+      - type: bind   # 2026-10-16: HDD 미마운트 시 빈 폴더로 기동 방지
+        source: /mnt/usb/yeoun_Desktop/Obsidian
+        target: /vault
+        bind:
+          create_host_path: false
+    ports:
+      - "127.0.0.1:8420:8420"
+    restart: always
+    networks:
+      - default
+      - nginx-proxy-manager_default
+
+networks:
+  nginx-proxy-manager_default:
+    external: true

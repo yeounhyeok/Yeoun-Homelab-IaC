@@ -1,0 +1,19 @@
+# Managed in Yeoun-Homelab-IaC (compose/n4000/watchtower).
+# 2026-10-16: n4000 전용 watchtower. label opt-in만 갱신(현재 immich_server 하나).
+# 일 05:00 KST (TZ 적용됨) — 04:00 주간 DB 백업(cron c8f01ee72383) 이후.
+services:
+  watchtower:
+    container_name: watchtower
+    image: containrrr/watchtower:latest
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - DOCKER_API_VERSION=1.55
+      - WATCHTOWER_SCHEDULE=0 0 5 * * 0
+      - WATCHTOWER_LABEL_ENABLE=true
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_INCLUDE_RESTARTING=true
+      - TZ=Asia/Seoul
+    labels:
+      - com.centurylinklabs.watchtower.disable=true

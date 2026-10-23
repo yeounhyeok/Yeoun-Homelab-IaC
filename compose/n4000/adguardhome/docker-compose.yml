@@ -1,0 +1,22 @@
+# Managed in Yeoun-Homelab-IaC (compose/n4000/adguardhome).
+services:
+  adguardhome:
+    image: adguard/adguardhome
+    container_name: adguardhome
+    restart: always
+    # 🚨 볼륨: 새 통합 경로 적용
+    volumes:
+      - ./work:/opt/adguardhome/work
+      - ./conf:/opt/adguardhome/conf
+      - /home/yeoun:/opt/adguardhome/yeoun
+    # 🚨 포트: 기존 설정에 따라 9393을 웹 UI 포트(3000/80)에 연결 (설정에 따라 80이나 3000이 될 수 있음)
+      - ../nginx-proxy-manager/letsencrypt:/opt/adguardhome/ssl:ro
+    ports:
+      # 웹 UI 접속 포트 (기존 설정 9393 사용)
+      - "9393:9393"
+      # DNS 쿼리 포트 (필수)
+      - "53:53/tcp"
+      - "53:53/udp"
+      - "67:67"
+      - "68:68"
+      - "853:853"

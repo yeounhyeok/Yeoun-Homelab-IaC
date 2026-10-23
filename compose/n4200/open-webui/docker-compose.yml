@@ -1,0 +1,29 @@
+# Managed in Yeoun-Homelab-IaC (compose/n4200/open-webui). Secrets are ${VAR} only;
+# values live in Vaultwarden item 'homelab/n4200/open-webui' and are rendered into .env by Ansible.
+services:
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    restart: always
+    ports:
+      - "8085:8080"   # 2026-10-16: IP별 바인딩은 부팅/Wi-Fi 복구 시 IP 미존재로 포트가 통째로 빠지는 레이스 → 전체 바인딩
+    environment:
+      - OLLAMA_BASE_URL=https://api.ollama.com
+      - ENABLE_SIGNUP=false
+      - DEFAULT_MODELS=kimi-k2.7-code
+      - DEFAULT_USER_ROLE=user
+      - WEBUI_AUTH=true
+      - RAG_EMBEDDING_MODEL=
+      - RAG_EMBEDDING_ENGINE=
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/backend/data
+    networks:
+      - open-webui
+    dns:
+      - 100.124.4.110
+
+networks:
+  open-webui:
+    name: open-webui

@@ -1,0 +1,114 @@
+---
+- name: "{{ proj.name }} | paths"
+  ansible.builtin.set_fact:
+    cs_dir: "{{ compose_home }}/{{ proj.dir }}"
+    cs_tmp: "/tmp/iac-compose-{{ proj.name }}"
+    cs_src: "{{ playbook_dir }}/../compose/{{ inventory_hostname }}/{{ proj.name }}"
+    cs_env: {}
+
+- name: "{{ proj.name }} | read secrets from Vaultwarden (controller)"
+  ansible.builtin.set_fact:
+    cs_fields: "{{ lookup('vaultwarden_fields', 'homelab/' ~ inventory_hostname ~ '/' ~ proj.name) }}"
+  when: proj.secrets | default(false) | bool
+  no_log: true
+
+- name: "{{ proj.name }} | group fields into env files"
+  ansible.builtin.set_fact:
+    cs_env: "{{ cs_env | combine({item.key.split('::')[0]: (cs_env[item.key.split('::')[0]] | default([])) + [item.key.split('::')[1] ~ '=' ~ item.value]}) }}"
+  loop: "{{ (cs_fields | default({})) | dict2items }}"
+  when: proj.secrets | default(false) | bool
+  no_log: true
+
+- name: "{{ proj.name }} | candidate dir"
+  ansible.builtin.file:
+    path: "{{ cs_tmp }}"
+    state: directory
+    mode: '0700'
+  check_mode: false
+  changed_when: false
+
+- name: "{{ proj.name }} | stage compose and extra files"
+  ansible.builtin.copy:
+    src: "{{ cs_src }}/{{ item }}"
+    dest: "{{ cs_tmp }}/{{ item }}"
+    mode: '0644'
+  loop: "{{ [proj.file] + (proj.extra_files | default([])) }}"
+  check_mode: false
+  changed_when: false
+
+- name: "{{ proj.name }} | stage rendered env files"
+  ansible.builtin.copy:
+    content: "# Rendered by Yeoun-Homelab-IaC compose_sync from Vaultwarden 'homelab/{{ inventory_hostname }}/{{ proj.name }}'. Do not edit here.\n{{ item.value | join('\n') }}\n"
+    dest: "{{ cs_tmp }}/{{ item.key }}"
+    mode: '0600'
+  loop: "{{ cs_env | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  check_mode: false
+  changed_when: false
+  no_log: true
+
+- name: "{{ proj.name }} | verify rendered == live"
+  ansible.builtin.script: "verify.sh {{ cs_dir }} {{ cs_tmp }} {{ proj.file }} {{ cs_env.keys() | join(' ') }}"
+  register: cs_verify
+  changed_when: false
+  check_mode: false
+
+- name: "{{ proj.name }} | result"
+  ansible.builtin.debug:
+    msg: "{{ cs_verify.stdout | trim }}"
+
+- name: "{{ proj.name }} | compare extra files"
+  ansible.builtin.command: "cmp -s {{ cs_dir }}/{{ item }} {{ cs_tmp }}/{{ item }}"
+  loop: "{{ proj.extra_files | default([]) }}"
+  register: cs_extra
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: "{{ proj.name }} | apply (only when equal)"
+  when:
+    - compose_sync_apply | bool
+    - (cs_verify.stdout | trim) == 'EQUAL'
+    - (cs_extra.results | default([]) | rejectattr('rc', 'equalto', 0) | list | length) == 0
+  block:
+    - name: "{{ proj.name }} | backup live files"
+      ansible.builtin.shell: |
+        set -e
+        b="{{ cs_dir }}/.iac-backup/$(date +%Y%m%d-%H%M%S)"; mkdir -p "$b"; chmod 700 "{{ cs_dir }}/.iac-backup" "$b"
+        for f in {{ ([proj.file] + (proj.extra_files | default([])) + (cs_env.keys() | list)) | join(' ') }}; do
+          [ -e "{{ cs_dir }}/$f" ] && cp -p "{{ cs_dir }}/$f" "$b/" || true
+        done
+        echo "$b"
+      register: cs_backup
+      changed_when: true
+
+    - name: "{{ proj.name }} | install compose and extra files"
+      ansible.builtin.copy:
+        src: "{{ cs_tmp }}/{{ item }}"
+        dest: "{{ cs_dir }}/{{ item }}"
+        remote_src: true
+        mode: preserve
+      loop: "{{ [proj.file] + (proj.extra_files | default([])) }}"
+
+    - name: "{{ proj.name }} | install env files"
+      ansible.builtin.copy:
+        src: "{{ cs_tmp }}/{{ item }}"
+        dest: "{{ cs_dir }}/{{ item }}"
+        remote_src: true
+        mode: '0600'
+      loop: "{{ cs_env.keys() | list }}"
+      no_log: true
+
+    - name: "{{ proj.name }} | re-verify live after install"
+      ansible.builtin.script: "verify.sh {{ cs_dir }} {{ cs_tmp }} {{ proj.file }} {{ cs_env.keys() | join(' ') }}"
+      register: cs_reverify
+      changed_when: false
+      failed_when: (cs_reverify.stdout | trim) != 'EQUAL'
+
+- name: "{{ proj.name }} | remove candidate dir"
+  ansible.builtin.file:
+    path: "{{ cs_tmp }}"
+    state: absent
+  check_mode: false
+  changed_when: false

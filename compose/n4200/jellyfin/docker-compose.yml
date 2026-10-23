@@ -1,0 +1,41 @@
+# Managed in Yeoun-Homelab-IaC (compose/n4200/jellyfin).
+services:
+  jellyfin:
+    image: jellyfin/jellyfin
+    container_name: jellyfin
+    user: 1000:1000 # 보통 우분투 기본 유저 ID, 권한 문제를 위해 권장
+    group_add:
+      - "44"
+      - "993"
+    ports:
+      - 8096:8096/tcp
+      - 7359:7359/udp
+    volumes:
+      - ./jellyfin/config:/config
+      - ./jellyfin/cache:/cache
+      - type: bind
+        source: /mnt/nfs/media
+        target: /media
+        read_only: true
+        bind:
+          create_host_path: false   # NFS 미마운트 시 빈 ext4 디렉터리 자동 생성 방지 -> 기동 실패 후 restart로 재시도
+          propagation: rslave
+      - ./jellyfin/fonts:/usr/share/fonts/truetype
+    
+    # 1. 하드웨어 가속을 위한 장치 연결 (핵심!)
+    devices:
+      - /dev/dri/renderD128:/dev/dri/renderD128
+      - /dev/dri/card1:/dev/dri/card1
+
+    restart: unless-stopped
+    environment:
+      - TZ=Asia/Seoul
+      - JELLYFIN_PublishedServerUrl=https://jellyfin.yeoun.org
+    
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

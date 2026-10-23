@@ -1,0 +1,20 @@
+# Managed in Yeoun-Homelab-IaC (compose/lab/immich-ml).
+# immich 머신러닝 원격 서버 (n4000 immich_server가 http://100.65.253.68:3003 로 호출)
+# 버전은 n4000 immich_server 태그(v3)와 맞춘다.
+services:
+  immich-machine-learning:
+    container_name: immich_machine_learning
+    image: ghcr.io/immich-app/immich-machine-learning:v3
+    volumes:
+      - ./model-cache:/cache
+    ports:
+      - "3003:3003"
+    environment:
+      - TZ=Asia/Seoul
+      - MACHINE_LEARNING_MODEL_TTL=300
+    cpu_shares: 256   # 고정 상한 대신 낮은 우선순위: 남는 코어는 전부 사용, 경합 시 mc-server(1024)가 우선
+    mem_limit: 2g
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }

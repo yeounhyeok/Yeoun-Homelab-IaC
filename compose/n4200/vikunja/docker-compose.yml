@@ -1,0 +1,20 @@
+# Managed in Yeoun-Homelab-IaC (compose/n4200/vikunja). Secrets are ${VAR} only;
+# values live in Vaultwarden item 'homelab/n4200/vikunja' and are rendered into .env by Ansible.
+services:
+  vikunja:
+    image: vikunja/vikunja
+    container_name: vikunja
+    restart: unless-stopped
+    ports:
+      - "3456:3456" # 내부 3456 포트를 외부 8081로 매핑
+    volumes:
+      - ./files:/app/vikunja/files
+      # 기존 db 폴더 내에 sqlite 파일을 생성하도록 설정
+      - ./db:/app/vikunja/db
+      - ./config.yml:/app/vikunja/config.yml:ro
+    environment:
+      - VIKUNJA_SERVICE_JWTSECRET=${VIKUNJA_SERVICE_JWTSECRET}
+      - VIKUNJA_DATABASE_TYPE=sqlite
+      - VIKUNJA_DATABASE_PATH=/app/vikunja/db/vikunja.db
+      # 사용자의 도메인 환경에 맞게 수정 (FRP/NPM 연동 시 중요)
+      - VIKUNJA_SERVICE_PUBLICURL=http://vikunja.yeoun.org/

@@ -1,0 +1,18 @@
+# Managed in Yeoun-Homelab-IaC (compose/n4000/navidrome).
+services:
+  navidrome:
+    image: deluan/navidrome:latest
+    container_name: navidrome
+    restart: always
+    ports:
+      - "4533:4533"
+    environment:
+      - ND_SCANSCHEDULE=@every 5m
+      - ND_LOGLEVEL=info
+    volumes:
+      - type: bind   # 2026-10-16: HDD 미마운트 시 빈 폴더로 기동 방지
+        source: /mnt/usb/media/Musics
+        target: /music
+        bind:
+          create_host_path: false
+      - "./navidrome_data:/data"

@@ -1,0 +1,11 @@
+---
+# Verify (default) or apply Git compose files + Vaultwarden-rendered env files.
+#   scripts/with-vaultwarden.sh ansible-playbook playbooks/compose_sync.yml [-l host] [-e compose_only=a,b]
+#   ... -e compose_sync_apply=true   # replace files only where rendered == live
+# Containers are never started/restarted here.
+- name: Compose projects from Git
+  hosts: nodes
+  become: false
+  gather_facts: false
+  roles:
+    - compose_sync

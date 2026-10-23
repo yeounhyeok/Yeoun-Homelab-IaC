@@ -1,0 +1,52 @@
+# Managed in Yeoun-Homelab-IaC (compose/arm/monitoring). Secrets are ${VAR} only;
+# values live in Vaultwarden item 'homelab/arm/monitoring' and are rendered into .env by Ansible.
+services:
+  beszel:
+    image: henrygd/beszel:latest
+    container_name: beszel
+    restart: unless-stopped
+    environment:
+      APP_URL: https://beszel.yeoun.org
+      USER_EMAIL: admin@yeoun.org
+      USER_PASSWORD: ${USER_PASSWORD}
+    ports:
+      - "100.117.250.54:8092:8090"
+    volumes:
+      - ./beszel_data:/beszel_data
+      - ./beszel_socket:/beszel_socket
+  dozzle:
+    image: amir20/dozzle:latest
+    container_name: dozzle
+    restart: unless-stopped
+    environment:
+      DOZZLE_HOSTNAME: arm
+      DOZZLE_REMOTE_AGENT: "n4200.soay-quail.ts.net:7007,n4000.soay-quail.ts.net:7007,lab.soay-quail.ts.net:7007"
+    ports:
+      - "100.117.250.54:8093:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+  beszel-agent:
+    image: henrygd/beszel-agent:latest
+    container_name: beszel-agent
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./beszel_socket:/beszel_socket
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      LISTEN: /beszel_socket/beszel.sock
+      KEY: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMguxjbOOZu+vC6GO/YgNGNYkWUZT6FH5lYNzrkWJn0D"
+
+  tapmap:
+    image: olalie/tapmap:latest
+    container_name: tapmap
+    restart: unless-stopped
+    network_mode: host
+    pid: host
+    environment:
+      - TAPMAP_IN_DOCKER=1
+      - TAPMAP_HOST=100.117.250.54
+      - TAPMAP_PORT=8050
+      - TAPMAP_LAUNCH_BROWSER=false
+    volumes:
+      - ./tapmap-data:/data

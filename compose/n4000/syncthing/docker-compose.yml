@@ -1,0 +1,18 @@
+# Managed in Yeoun-Homelab-IaC (compose/n4000/syncthing).
+services:
+  syncthing:
+    image: linuxserver/syncthing
+    container_name: syncthing
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Asia/Seoul
+    volumes:
+      - ./config:/config
+      - /mnt/usb:/data1
+    ports:
+      - 8384:8384      # NPM이 프록시할 거라 로컬만 바인딩해도 됨
+      - 22000:22000    # TCP 동기화 (NPM TCP stream 또는 로컬 바인딩)
+      # 22000/udp와 21027/udp는 외부에 노출 안 해도 됨
+    restart: unless-stopped
+    # network_mode: bridge 또는 npm과 같은 docker network에 넣기
