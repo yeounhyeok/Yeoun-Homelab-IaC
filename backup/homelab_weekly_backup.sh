@@ -63,14 +63,15 @@ arm_config(){ tarok sudo -n tar -C /home/ubuntu "${CXA[@]}" -czf - \
   docker_volumes/rhwp-studio docker_volumes/BOJWorkspace/workspace docker_volumes/mc-forward scripts \
   -C / path/to/code-server/config | put "$D/arm-config.tar.gz"; }
 arm_work(){ tarok tar -C /home/ubuntu --warning=no-file-changed --exclude=node_modules --exclude=.venv --exclude=venv --exclude=__pycache__ \
-  --exclude=ansible_collections --exclude='*.ckpt' --exclude='*.pt' --exclude='*.pth' --exclude='*.safetensors' --exclude='*.onnx' -czf - work | put "$D/arm-work.tar.gz"; }
+  --exclude=ansible_collections --exclude=.next --exclude='*.ckpt' --exclude='*.pt' --exclude='*.pth' --exclude='*.safetensors' --exclude='*.onnx' -czf - work | put "$D/arm-work.tar.gz"; }
 arm_hermes(){ local T=$(mktemp -d); local H=/home/ubuntu/.hermes
   git -C $H/hermes-agent rev-parse HEAD > $T/hermes-agent.HEAD 2>&1; git -C $H/hermes-agent status --porcelain > $T/hermes-agent.status 2>&1
   git -C $H/hermes-agent diff HEAD > $T/hermes-agent-local.patch 2>&1
   tarok tar -C $H --warning=no-file-changed --exclude=./hermes-agent --exclude=./tools --exclude=./installs --exclude=./checkpoints --exclude=./lsp \
-    --exclude=./bin --exclude=./cache --exclude=./audio_cache --exclude=./logs --exclude='./state.db*' --exclude=node_modules --exclude=__pycache__ \
+    --exclude=./bin --exclude=./cache --exclude=./audio_cache --exclude=./logs --exclude='./state.db*' --exclude='*.db' --exclude='*.db-wal' --exclude='*.db-shm' --exclude=node_modules --exclude=__pycache__ \
     --exclude=venv --exclude=.venv -czf - . -C $T hermes-agent.HEAD hermes-agent.status hermes-agent-local.patch | put "$D/arm-hermes.tar.gz"; local r=$?; rm -rf $T; return $r; }
-arm_hermes_state(){ python3 $SNAP 'hermes-state=/home/ubuntu/.hermes/state.db' | put "$D/arm-hermes-state.tar.gz"; }
+# all Hermes SQLite files via the online-backup API (a tar of a live WAL db can be inconsistent)
+arm_hermes_state(){ local H=/home/ubuntu/.hermes; python3 $SNAP 'hermes-state='$H/state.db $(cd $H && for f in *.db cron/*.db; do [ -f "$f" ] && printf "hermes-%s=%s/%s " "$(echo ${f%.db} | tr / -)" $H "$f"; done) | put "$D/arm-hermes-state.tar.gz"; }
 N4CFG="set -f; { sudo -n tar -C /home/yeoun $CX -czf - docker_volumes/adguardhome/conf docker_volumes/nginx-proxy-manager docker_volumes/navidrome/navidrome_data docker_volumes/syncthing/config docker_volumes/moa-monitoring docker_volumes/cloudflared docs work scripts ysvpn-test mc-offload-prune.sh; r=\$?; [ \$r -le 1 ]; } | sudo -n sh -c 'cat > $D/n4000-config.tar.gz'"
 n4200_config(){ timeout 1800 ssh -o ConnectTimeout=10 -o BatchMode=yes n4200 "bash -f -o pipefail -c '{ sudo -n tar -C /home/yeoun $CX --exclude=docker_volumes/jellyfin/jellyfin/config/metadata --exclude=dist --exclude=.astro -czf - docker_volumes/home-assistant/config docker_volumes/home-assistant/matter-data docker_volumes/homepage/config docker_volumes/jellyfin/jellyfin/config docker_volumes/open-webui/data docker_volumes/vikunja/files docker_volumes/vikunja/config.yml docker_volumes/syncthing_n4200/config services/astro-blog; r=\$?; [ \$r -le 1 ]; }'" | put "$D/n4200-config.tar.gz"; }
 step arm-config arm_config
