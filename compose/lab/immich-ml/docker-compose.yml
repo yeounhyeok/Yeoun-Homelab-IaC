@@ -4,6 +4,10 @@
 services:
   immich-machine-learning:
     container_name: immich_machine_learning
+    # CPU on purpose. CUDA on the GTX 1050 2GB was tested 2026-10-27 (v3.3.4-cuda) and
+    # reverted: SigLIP2 text model alone takes ~1.2GB VRAM, all models ~1.6GB (+0.3GB
+    # desktop) -> VRAM full, WDDM spills, photo throughput 2.2/s (< CPU 4.9/s), search
+    # cold start 16-33s (CPU 4.6s), and no room for Jellyfin NVENC (~1GB).
     image: ghcr.io/immich-app/immich-machine-learning:v3
     volumes:
       - ./model-cache:/cache
