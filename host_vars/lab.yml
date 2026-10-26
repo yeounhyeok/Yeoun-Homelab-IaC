@@ -15,6 +15,9 @@ ssh_policy_manage: false
 # WSL: Docker sets ip_forward at runtime; no apt retry file was ever installed.
 common_ip_forward_persist: false
 common_apt_retry_manage: false
+# GTX 1050 (2026-10-26). Windows driver 582.78 exposes the GPU to WSL;
+# the toolkit lets containers use it (immich ML CUDA, later Jellyfin NVENC).
+nvidia_container_toolkit_enabled: true
 
 # Compose projects tracked in compose/lab/ (2026-10-22 import).
 compose_projects:

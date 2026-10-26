@@ -1,0 +1,11 @@
+---
+# Opt-in per host (host_vars). Installs NVIDIA Container Toolkit so Docker
+# containers can request a GPU with `--gpus` / compose `deploy.resources`.
+# daemon.json is deliberately NOT touched: Docker's --gpus path uses the
+# nvidia-container-runtime-hook from this package, so no dockerd restart.
+nvidia_container_toolkit_enabled: false
+nvidia_container_toolkit_keyring: /usr/share/keyrings/nvidia-container-toolkit-keyring.asc
+nvidia_container_toolkit_key_url: https://nvidia.github.io/libnvidia-container/gpgkey
+nvidia_container_toolkit_repo: >-
+  deb [signed-by={{ nvidia_container_toolkit_keyring }}]
+  https://nvidia.github.io/libnvidia-container/stable/deb/$(ARCH) /

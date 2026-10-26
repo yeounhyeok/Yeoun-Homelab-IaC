@@ -1,0 +1,38 @@
+---
+- name: NVIDIA Container Toolkit
+  when: nvidia_container_toolkit_enabled | bool
+  block:
+    # get_url cannot predict check mode and force:true is never idempotent:
+    # download only when the keyring is missing.
+    - name: Check the NVIDIA Container Toolkit keyring
+      ansible.builtin.stat:
+        path: "{{ nvidia_container_toolkit_keyring }}"
+      register: nvidia_ctk_keyring
+
+    - name: Download the NVIDIA Container Toolkit signing key
+      ansible.builtin.get_url:
+        url: "{{ nvidia_container_toolkit_key_url }}"
+        dest: "{{ nvidia_container_toolkit_keyring }}"
+        owner: root
+        group: root
+        mode: '0644'
+      when: not nvidia_ctk_keyring.stat.exists
+
+    # Written as a plain file: apt itself expands $(ARCH); apt_repository
+    # would try to validate the literal URL.
+    - name: Configure the NVIDIA Container Toolkit apt source
+      ansible.builtin.copy:
+        dest: /etc/apt/sources.list.d/nvidia-container-toolkit.list
+        owner: root
+        group: root
+        mode: '0644'
+        content: "{{ nvidia_container_toolkit_repo }}\n"
+      register: nvidia_ctk_source
+
+    - name: Install NVIDIA Container Toolkit
+      ansible.builtin.apt:
+        name: nvidia-container-toolkit
+        state: present
+        update_cache: "{{ nvidia_ctk_source.changed }}"
+      # In check mode a not-yet-added repo cannot resolve the package.
+      when: not (ansible_check_mode and nvidia_ctk_source.changed)

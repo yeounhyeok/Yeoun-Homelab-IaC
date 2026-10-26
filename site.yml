@@ -7,6 +7,8 @@
   roles:
     - role: common
       tags: [baseline, common]
+    - role: nvidia_container_toolkit
+      tags: [baseline, nvidia]
     - role: ram_optimization
       tags: [baseline, ram]
     - role: tailscale
