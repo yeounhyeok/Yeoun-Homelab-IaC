@@ -1,0 +1,16 @@
+---
+# n4200 NFS mount guard (n4000:/mnt/usb on /mnt/nfs): prefer LAN, fall back to
+# Tailscale, remount when unhealthy. Jellyfin moved to lab 2026-10-26; the guard
+# only restarts the n4200 jellyfin container if it was running (fallback copy).
+- name: Guard script
+  become: true
+  ansible.builtin.copy:
+    src: nfs-lan-guard.sh
+    dest: /usr/local/bin/nfs-lan-guard.sh
+    mode: '0755'
+- name: Cron (every 5 min)
+  become: true
+  ansible.builtin.copy:
+    src: nfs-lan-guard.cron
+    dest: /etc/cron.d/nfs-lan-guard
+    mode: '0644'

@@ -25,3 +25,9 @@
     wsl_nfs_containers: [jellyfin]
   roles:
     - wsl_nfs_mount
+
+- name: n4200 NFS guard (fallback Jellyfin host)
+  hosts: n4200
+  gather_facts: false
+  roles:
+    - n4200_nfs_guard

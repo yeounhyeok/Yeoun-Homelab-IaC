@@ -6,7 +6,6 @@
   ansible.windows.win_template:
     src: portproxy-guard.ps1.j2
     dest: "{{ lab_scripts_dir }}\\portproxy-guard.ps1"
-    backup: true
   register: lab_guard_script
 
 - name: Firewall rules for Tailscale-only ports
