@@ -27,6 +27,14 @@
         dest: "{{ homepage_settings_file }}"
         mode: '0664'
         backup: true
+      register: homepage_settings_copy
+
+    - name: Reload Homepage when settings change or an explicit reload is requested
+      ansible.builtin.command: docker restart homepage
+      when:
+        - not ansible_check_mode
+        - homepage_settings_copy.changed or (homepage_force_reload | default(false) | bool)
+      changed_when: true
 
     - name: Read back exact deployed settings
       ansible.builtin.slurp:
