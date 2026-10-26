@@ -1,0 +1,53 @@
+# {{ ansible_managed }}
+# Source: Yeoun-Homelab-IaC roles/lab_windows_net. Run by task PortproxyGuard
+# (SYSTEM, at boot + every 1 min). ASCII only: PowerShell 5.1 reads BOM-less
+# files as ANSI.
+# 1) Tailscale IP -> 127.0.0.1 (WSL localhost forwarding). At boot the
+#    Tailscale IP appears late, so a persisted rule may fail to bind; re-add
+#    any port that is not LISTENING.
+# 2) WSL -> n4000 NFS: listen on the current WSL vEthernet IP (it can change
+#    after a reboot) and forward to n4000. Stale listen addresses are removed.
+$ErrorActionPreference = 'SilentlyContinue'
+$log = '{{ lab_scripts_dir }}\portproxy-guard.log'
+function Log($m) { Add-Content $log "$(Get-Date -Format s) $m" }
+function Listening($addr, $port) {
+  [bool](netstat -ano | Select-String "\s$([regex]::Escape($addr)):$port\s+0\.0\.0\.0:0\s+LISTENING")
+}
+
+$ts = '{{ lab_ts_ip }}'
+if (Get-NetIPAddress -IPAddress $ts) {
+  foreach ($port in @({{ lab_portproxy_ts_ports | map(attribute='port') | join(', ') }})) {
+    if (-not (Listening $ts $port)) {
+      netsh interface portproxy delete v4tov4 listenaddress=$ts listenport=$port | Out-Null
+      netsh interface portproxy add v4tov4 listenaddress=$ts listenport=$port connectaddress=127.0.0.1 connectport=$port | Out-Null
+      Log "rebind portproxy $port"
+    }
+  }
+}
+
+{% if lab_nfs_proxy_enabled %}
+$nfsPort = {{ lab_nfs_proxy_port }}
+$target = '{{ lab_nfs_proxy_target }}'
+$wsl = Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.InterfaceAlias -like 'vEthernet (WSL*' } | Select-Object -First 1 -ExpandProperty IPAddress
+if ($wsl) {
+  foreach ($line in (netsh interface portproxy show v4tov4)) {
+    if ($line -match '^\s*(\d+\.\d+\.\d+\.\d+)\s+(\d+)\s+(\S+)\s+(\d+)') {
+      if ([int]$Matches[2] -eq $nfsPort -and $Matches[1] -ne $wsl) {
+        netsh interface portproxy delete v4tov4 listenaddress=$($Matches[1]) listenport=$nfsPort | Out-Null
+        Log "drop stale nfs proxy $($Matches[1])"
+      }
+    }
+  }
+  if (-not (Listening $wsl $nfsPort)) {
+    netsh interface portproxy delete v4tov4 listenaddress=$wsl listenport=$nfsPort | Out-Null
+    netsh interface portproxy add v4tov4 listenaddress=$wsl listenport=$nfsPort connectaddress=$target connectport=$nfsPort | Out-Null
+    Log "bind nfs proxy $wsl`:$nfsPort -> $target"
+  }
+}
+{% else %}
+foreach ($line in (netsh interface portproxy show v4tov4)) {
+  if ($line -match '^\s*(\d+\.\d+\.\d+\.\d+)\s+{{ lab_nfs_proxy_port }}\s') {
+    netsh interface portproxy delete v4tov4 listenaddress=$($Matches[1]) listenport={{ lab_nfs_proxy_port }} | Out-Null
+  }
+}
+{% endif %}

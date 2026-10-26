@@ -1,0 +1,35 @@
+#!/bin/sh
+# {{ ansible_managed }}
+# Mount n4000:{{ wsl_nfs_export }} via the Windows portproxy on the WSL gateway.
+# Remount when the gateway changed or the mount went stale. Idempotent.
+set -u
+MP={{ wsl_nfs_mountpoint }}
+GW=$(ip -4 route show default | awk '{print $3; exit}')
+[ -n "$GW" ] || { echo "no default gateway"; exit 1; }
+SRC="$GW:{{ wsl_nfs_export }}"
+CONTAINERS="{{ wsl_nfs_containers | join(' ') }}"
+CUR=$(findmnt -n -o SOURCE --mountpoint "$MP" -t nfs4 2>/dev/null || true)
+REMOUNT=0
+if [ -n "$CUR" ]; then
+  if [ "$CUR" = "$SRC" ] && timeout 15 stat -t "$MP" >/dev/null 2>&1; then
+    MOUNTED=1
+  else
+    echo "remount: current=$CUR wanted=$SRC"
+    umount -l "$MP" || true
+    REMOUNT=1
+  fi
+fi
+if [ -z "${MOUNTED:-}" ]; then
+  mount -t nfs4 -o {{ wsl_nfs_options }} "$SRC" "$MP" || exit 1
+  echo "mounted $SRC on $MP"
+fi
+command -v docker >/dev/null 2>&1 || exit 0
+for c in $CONTAINERS; do
+  st=$(docker inspect -f '{{ '{{' }}.State.Status{{ '}}' }}:{{ '{{' }}.State.Error{{ '}}' }}' "$c" 2>/dev/null) || continue
+  case "$st" in
+    running:*) [ "$REMOUNT" = 1 ] && docker restart "$c" >/dev/null && echo "restarted $c (remount)" ;;
+    *:) : ;;                                   # stopped cleanly (manual stop): leave it
+    *) docker start "$c" >/dev/null && echo "started $c (was: $st)" ;;
+  esac
+done
+exit 0

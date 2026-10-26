@@ -1,0 +1,14 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Mount n4000 NFS via Windows portproxy (WSL gateway)
+Wants=network-online.target
+After=network-online.target
+Before=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/wsl-nfs-mount.sh
+TimeoutStartSec=90
+
+[Install]
+WantedBy=multi-user.target

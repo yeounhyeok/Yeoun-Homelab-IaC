@@ -1,0 +1,10 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Re-check n4000 NFS mount (gateway change / stale mount)
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec={{ wsl_nfs_check_interval }}
+
+[Install]
+WantedBy=timers.target

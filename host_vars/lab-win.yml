@@ -1,0 +1,21 @@
+---
+# lab Windows host (same PC as WSL host `lab`).
+lab_ts_ip: 100.65.253.68
+lab_scripts_dir: 'C:\Users\yeoun\Scripts'
+
+# Tailscale IP -> WSL (127.0.0.1 is forwarded into WSL by WSL localhost forwarding).
+lab_portproxy_ts_ports:
+  - { port: 25565, fw: 'Minecraft 25565 (Tailscale only)' }
+  - { port: 3003,  fw: 'Immich ML 3003 (Tailscale only)' }
+  - { port: 2222,  fw: 'WSL SSH 2222 (Tailscale only)' }
+  - { port: 7007,  fw: 'Monitoring agents 7007/45877 (Tailscale only)' }
+  - { port: 45877, fw: 'Monitoring agents 7007/45877 (Tailscale only)' }
+  - { port: 8096,  fw: 'Jellyfin 8096 (Tailscale only)' }
+
+# WSL -> n4000 NFS through Windows. WSL's own NAT path to n4000 is ~5MB/s
+# (both via Windows Tailscale and via a Tailscale node inside WSL, measured
+# 2026-10-24/26); Windows itself gets ~10-12MB/s, so WSL connects to the
+# Windows side of the WSL vSwitch and Windows makes the n4000 connection.
+lab_nfs_proxy_enabled: true
+lab_nfs_proxy_target: 100.124.4.110
+lab_nfs_proxy_port: 2049

@@ -1,0 +1,59 @@
+---
+- name: WSL NFS mount via Windows portproxy
+  when: wsl_nfs_enabled | bool
+  become: true
+  block:
+    - name: NFS client
+      ansible.builtin.apt:
+        name: nfs-common
+        state: present
+
+    - name: Mountpoint exists?
+      ansible.builtin.stat:
+        path: "{{ wsl_nfs_mountpoint }}"
+      register: wsl_nfs_mp
+
+    # Only create it: once the (read-only) NFS is mounted there, chmod fails.
+    - name: Mountpoint
+      ansible.builtin.file:
+        path: "{{ wsl_nfs_mountpoint }}"
+        state: directory
+        mode: '0755'
+      when: not wsl_nfs_mp.stat.exists
+
+    - name: Mount script
+      ansible.builtin.template:
+        src: wsl-nfs-mount.sh.j2
+        dest: /usr/local/sbin/wsl-nfs-mount.sh
+        mode: '0755'
+
+    - name: systemd units
+      ansible.builtin.template:
+        src: "{{ item }}.j2"
+        dest: "/etc/systemd/system/{{ item }}"
+        mode: '0644'
+      loop:
+        - wsl-nfs-mount.service
+        - wsl-nfs-mount.timer
+      register: wsl_nfs_units
+
+    # The service is a oneshot (inactive after each run): enable it for boot,
+    # run the script directly, and keep the timer running for re-checks.
+    - name: Enable the mount service (boot) and timer
+      ansible.builtin.systemd:
+        name: "{{ item.name }}"
+        enabled: true
+        state: "{{ item.state | default(omit) }}"
+        daemon_reload: "{{ wsl_nfs_units is changed }}"
+      loop:
+        - { name: wsl-nfs-mount.service }
+        - { name: wsl-nfs-mount.timer, state: started }
+      loop_control:
+        label: "{{ item.name }}"
+      when: not (ansible_check_mode and wsl_nfs_units is changed)
+
+    - name: Mount now (no-op when already mounted)
+      ansible.builtin.command: /usr/local/sbin/wsl-nfs-mount.sh
+      register: wsl_nfs_run
+      changed_when: wsl_nfs_run.stdout is search('mounted|started|restarted')
+      when: not ansible_check_mode

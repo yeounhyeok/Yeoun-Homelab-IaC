@@ -3,6 +3,8 @@ services:
   jellyfin:
     image: jellyfin/jellyfin
     container_name: jellyfin
+    # 2026-10-26 lab(GTX 1050)으로 이전. 롤백용으로 정지 보존: `docker compose --profile disabled up -d`
+    profiles: ["disabled"]
     user: 1000:1000 # 보통 우분투 기본 유저 ID, 권한 문제를 위해 권장
     group_add:
       - "44"

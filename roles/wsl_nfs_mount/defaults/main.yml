@@ -1,0 +1,13 @@
+---
+# NFS mount inside WSL through the Windows-side portproxy (see lab_windows_net).
+# The server address is the WSL default gateway (= Windows vEthernet IP), which
+# can change after a reboot, so a script resolves it on every run.
+wsl_nfs_enabled: false
+wsl_nfs_export: /mnt/usb
+wsl_nfs_mountpoint: /mnt/n4000
+wsl_nfs_options: ro,vers=4.2,port=2049,soft,timeo=600,retrans=2,noatime
+wsl_nfs_check_interval: 5min
+# Containers that bind-mount the NFS path: restarted after a remount (their
+# bind would point at the old, detached mount) and started if a boot-time start
+# failed because the mount was not there yet. A manual stop is respected.
+wsl_nfs_containers: []

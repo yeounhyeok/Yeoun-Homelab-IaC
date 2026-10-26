@@ -1,0 +1,18 @@
+---
+# Extra /etc/exports lines managed by IaC (the base exports predate IaC).
+- name: Managed export lines
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/exports
+    line: "{{ item.line }}"
+    regexp: "{{ item.regexp | default(omit) }}"
+    backup: true
+  loop: "{{ nfs_export_lines | default([]) }}"
+  loop_control:
+    label: "{{ item.line }}"
+  register: nfs_export_changed
+
+- name: Re-export
+  become: true
+  ansible.builtin.command: exportfs -ra
+  when: nfs_export_changed is changed

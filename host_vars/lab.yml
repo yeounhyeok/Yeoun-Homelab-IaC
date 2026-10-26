@@ -24,3 +24,4 @@ compose_projects:
   - { name: immich-ml, dir: docker_volumes/immich-ml, file: docker-compose.yml }
   - { name: mcserver, dir: docker_volumes/mcserver, file: docker-compose.yml, secrets: true }
   - { name: monitoring-agent, dir: docker_volumes/monitoring-agent, file: docker-compose.yml }
+  - { name: jellyfin, dir: docker_volumes/jellyfin, file: docker-compose.yml }

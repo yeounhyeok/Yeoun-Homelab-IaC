@@ -1,0 +1,39 @@
+# Managed in Yeoun-Homelab-IaC (compose/lab/jellyfin). Moved from n4200 2026-10-26.
+# Media: n4000:/mnt/usb via Windows portproxy -> /mnt/n4000 (roles/wsl_nfs_mount,
+# roles/lab_windows_net, playbooks/lab_media.yml). Exposed on the Windows
+# Tailscale IP by portproxy 100.65.253.68:8096 -> 127.0.0.1:8096; NPM proxy host 18.
+# GPU: GTX 1050 via nvidia-container-toolkit CDI (NVENC/NVDEC, tonemap_cuda).
+services:
+  jellyfin:
+    image: jellyfin/jellyfin:10.11.7@sha256:17285f9cce63b3519ccad82b84497fc22482c20f8b8bbe0580d51fec5deaa6fd
+    container_name: jellyfin
+    user: 1000:1000
+    ports:
+      - 8096:8096/tcp
+    volumes:
+      - ./jellyfin/config:/config
+      - ./jellyfin/cache:/cache
+      - type: bind
+        source: /mnt/n4000/media
+        target: /media
+        read_only: true
+        bind:
+          create_host_path: false   # NFS 미마운트 시 기동 실패 -> wsl-nfs-mount.sh가 마운트 후 start
+      - ./jellyfin/fonts:/usr/share/fonts/truetype
+    environment:
+      - TZ=Asia/Seoul
+      - JELLYFIN_PublishedServerUrl=https://jellyfin.yeoun.org
+      - NVIDIA_DRIVER_CAPABILITIES=all
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu, video, compute, utility]
+    cpu_shares: 512   # mc-server(1024) 우선
+    mem_limit: 2g
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }

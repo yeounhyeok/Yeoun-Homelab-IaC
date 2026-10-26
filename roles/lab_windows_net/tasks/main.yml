@@ -1,0 +1,57 @@
+---
+# Windows side of lab: portproxy guard script + firewall rules.
+# The scheduled task PortproxyGuard (SYSTEM, at boot + every 1 min) runs the
+# script; it re-creates rules that are missing or not listening.
+- name: Portproxy guard script
+  ansible.windows.win_template:
+    src: portproxy-guard.ps1.j2
+    dest: "{{ lab_scripts_dir }}\\portproxy-guard.ps1"
+    backup: true
+  register: lab_guard_script
+
+- name: Firewall rules for Tailscale-only ports
+  community.windows.win_firewall_rule:
+    name: "{{ item.0 }}"
+    localport: "{{ item.1 | map(attribute='port') | join(',') }}"
+    action: allow
+    direction: in
+    protocol: tcp
+    remoteip: 100.64.0.0/10
+    profiles: [domain, private, public]
+    state: present
+    enabled: true
+  loop: "{{ lab_portproxy_ts_ports | groupby('fw') }}"
+  loop_control:
+    label: "{{ item.0 }}"
+
+- name: Firewall rule for WSL -> n4000 NFS proxy
+  community.windows.win_firewall_rule:
+    name: WSL->n4000 NFS proxy 2049 (WSL subnet only)
+    localport: "{{ lab_nfs_proxy_port }}"
+    action: allow
+    direction: in
+    protocol: tcp
+    remoteip: 172.16.0.0/12
+    profiles: [domain, private, public]
+    state: "{{ 'present' if lab_nfs_proxy_enabled else 'absent' }}"
+    enabled: true
+
+- name: PortproxyGuard task must exist (created manually 2026-10-21)
+  ansible.windows.win_shell: |
+    $t = Get-ScheduledTask -TaskName PortproxyGuard -ErrorAction Stop
+    "$($t.State)"
+  changed_when: false
+
+- name: Run the guard once now
+  ansible.windows.win_shell: |
+    Start-ScheduledTask -TaskName PortproxyGuard
+    Start-Sleep -Seconds 5
+    netsh interface portproxy show v4tov4
+  register: lab_guard_run
+  changed_when: false
+  when: lab_guard_script is changed
+
+- name: Portproxy rules
+  ansible.builtin.debug:
+    msg: "{{ lab_guard_run.stdout_lines | default([]) | select('match', '^\\s*[0-9]') | list }}"
+  when: lab_guard_script is changed

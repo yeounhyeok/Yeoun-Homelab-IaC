@@ -1,0 +1,27 @@
+---
+# lab media path: n4000 NFS -> Windows portproxy -> WSL mount (+ Jellyfin port).
+#   ansible-playbook playbooks/lab_media.yml [--check --diff]
+- name: n4000 exports lab (via Windows portproxy, so source port > 1023 -> insecure)
+  hosts: n4000
+  gather_facts: false
+  vars:
+    nfs_export_lines:
+      - line: /mnt/usb 100.65.253.68(ro,sync,no_subtree_check,insecure)
+        regexp: '^/mnt/usb 100\.65\.253\.68\('
+  roles:
+    - nfs_export_lines
+
+- name: lab Windows networking
+  hosts: lab-win
+  gather_facts: false
+  roles:
+    - lab_windows_net
+
+- name: lab WSL NFS mount
+  hosts: lab
+  gather_facts: false
+  vars:
+    wsl_nfs_enabled: true
+    wsl_nfs_containers: [jellyfin]
+  roles:
+    - wsl_nfs_mount
