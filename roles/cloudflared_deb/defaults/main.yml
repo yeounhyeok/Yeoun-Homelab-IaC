@@ -1,0 +1,8 @@
+---
+# cloudflared installed from the GitHub release .deb (no apt repo on arm).
+# Keep >= 2026.10.2 (eMudhra intermediate distrust, Cloudflare notice 2026-10-20).
+cloudflared_deb_version: "2026.10.4"
+cloudflared_deb_arch: arm64
+cloudflared_deb_sha256: d0d08a43521e52ba0707900ebe67314e7ca6f610b88024fe6562a408ab6a0f4d
+# systemd units running cloudflared on this host (restarted after an upgrade)
+cloudflared_deb_services: []

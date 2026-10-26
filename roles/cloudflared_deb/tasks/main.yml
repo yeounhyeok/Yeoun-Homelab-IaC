@@ -1,0 +1,32 @@
+---
+- name: Installed cloudflared version
+  ansible.builtin.command: dpkg-query -W -f=${Version} cloudflared
+  register: cloudflared_installed
+  changed_when: false
+  failed_when: false
+
+- name: Upgrade cloudflared
+  when: cloudflared_installed.stdout != cloudflared_deb_version
+  become: true
+  block:
+    - name: Download release .deb (checksum verified)
+      ansible.builtin.get_url:
+        url: "https://github.com/cloudflare/cloudflared/releases/download/{{ cloudflared_deb_version }}/cloudflared-linux-{{ cloudflared_deb_arch }}.deb"
+        dest: "/tmp/cloudflared-{{ cloudflared_deb_version }}.deb"
+        checksum: "sha256:{{ cloudflared_deb_sha256 }}"
+        mode: '0644'
+
+    - name: Install
+      ansible.builtin.apt:
+        deb: "/tmp/cloudflared-{{ cloudflared_deb_version }}.deb"
+
+    - name: Restart tunnel services
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        state: restarted
+      loop: "{{ cloudflared_deb_services }}"
+
+    - name: Remove downloaded .deb
+      ansible.builtin.file:
+        path: "/tmp/cloudflared-{{ cloudflared_deb_version }}.deb"
+        state: absent

@@ -2,7 +2,9 @@
 # values live in Vaultwarden item 'homelab/n4000/cloudflared' and are rendered into .env by Ansible.
 services:
   cloudflared:
-    image: cloudflare/cloudflared:latest
+    # Pinned (2026-10-27): >= 2026.10.2 required — older builds trust compromised
+    # eMudhra intermediates (Cloudflare notice 2026-10-20). Bump deliberately.
+    image: cloudflare/cloudflared:2026.10.4@sha256:c6c7ae1d5dfdcb094ad344ed68ccffc26635c9c6be80965664c33baf064b0515
     container_name: cloudflared
     restart: always
     network_mode: host

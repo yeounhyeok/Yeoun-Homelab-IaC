@@ -1,0 +1,11 @@
+---
+# cloudflared binary hosts (container hosts are pinned in compose/<host>/cloudflared).
+# Zero-downtime: start a temporary replica with the same token first (see README).
+#   ansible-playbook playbooks/cloudflared_upgrade.yml
+- name: arm cloudflared (tunnel 6d14ee0d edge standby)
+  hosts: arm
+  gather_facts: false
+  vars:
+    cloudflared_deb_services: [cloudflared-arm-edge-standby]
+  roles:
+    - cloudflared_deb
