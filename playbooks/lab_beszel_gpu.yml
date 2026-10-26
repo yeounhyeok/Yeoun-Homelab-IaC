@@ -1,0 +1,69 @@
+---
+# Beszel hub's existing "lab" record targets the Windows agent on :45876,
+# NOT the separate WSL Docker agent on :45877. Preserve task/auth/listener.
+# ansible-playbook playbooks/lab_beszel_gpu.yml -l lab-win
+- name: Enable GPU metrics on the existing lab Windows Beszel agent
+  hosts: lab-win
+  gather_facts: false
+  tasks:
+    - name: Check existing task, executable and NVIDIA query
+      ansible.windows.win_shell: |
+        $ErrorActionPreference = 'Stop'
+        $task = Get-ScheduledTask -TaskName BeszelAgent -ErrorAction Stop
+        if ($task.Actions.Execute -ne 'C:\beszel-agent\run.cmd') {
+          throw 'Unexpected BeszelAgent action; refusing to alter another task'
+        }
+        if (-not (Test-Path 'C:\beszel-agent\beszel-agent.exe')) {
+          throw 'Beszel executable missing'
+        }
+        & nvidia-smi --query-gpu=name,utilization.gpu,memory.used,memory.total,temperature.gpu --format=csv,noheader
+        if ($LASTEXITCODE -ne 0) { throw 'NVIDIA query failed' }
+      changed_when: false
+      check_mode: false
+
+    - name: Select native NVML with nvidia-smi fallback without changing credentials
+      community.windows.win_lineinfile:
+        path: 'C:\beszel-agent\run.cmd'
+        regex: '^set "?GPU_COLLECTOR='
+        line: 'set GPU_COLLECTOR=nvml,nvidia-smi'
+        insertbefore: '^"C:\\beszel-agent\\beszel-agent\.exe"'
+        newline: windows
+        backup: true
+      register: beszel_gpu_setting
+      # run.cmd contains authentication settings; do not expose diffs.
+      diff: false
+
+    - name: Restart only the existing Windows Beszel scheduled task
+      ansible.windows.win_shell: |
+        $ErrorActionPreference = 'Stop'
+        Stop-ScheduledTask -TaskName BeszelAgent
+        Get-CimInstance Win32_Process |
+          Where-Object { $_.ExecutablePath -eq 'C:\beszel-agent\beszel-agent.exe' } |
+          ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+        Start-ScheduledTask -TaskName BeszelAgent
+      when: beszel_gpu_setting is changed
+      changed_when: true
+
+    - name: Verify the task process and listener
+      ansible.windows.win_shell: |
+        $ErrorActionPreference = 'Stop'
+        $p = @(Get-CimInstance Win32_Process | Where-Object {
+          $_.ExecutablePath -eq 'C:\beszel-agent\beszel-agent.exe'
+        })
+        if ($p.Count -ne 1) { throw "Expected one Beszel process, found $($p.Count)" }
+        $listener = Get-NetTCPConnection -LocalPort 45876 -State Listen -ErrorAction Stop
+        if ($listener.OwningProcess -notcontains $p[0].ProcessId) {
+          throw 'Listener is not owned by the Beszel process'
+        }
+        "beszel_pid=$($p[0].ProcessId) task=$((Get-ScheduledTask -TaskName BeszelAgent).State) listener=45876"
+      register: beszel_live
+      until: beszel_live.rc == 0
+      retries: 5
+      delay: 2
+      changed_when: false
+      when: not ansible_check_mode
+
+    - name: Report live verification
+      ansible.builtin.debug:
+        var: beszel_live.stdout
+      when: not ansible_check_mode
