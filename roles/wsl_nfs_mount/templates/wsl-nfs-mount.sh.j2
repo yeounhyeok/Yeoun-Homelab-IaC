@@ -23,7 +23,10 @@ if [ -z "${MOUNTED:-}" ]; then
   mount -t nfs4 -o {{ wsl_nfs_options }} "$SRC" "$MP" || exit 1
   echo "mounted $SRC on $MP"
 fi
-command -v docker >/dev/null 2>&1 || exit 0
+# At boot this runs Before=docker.service: calling docker here would socket-activate
+# dockerd, which waits for this unit -> deadlock until timeout. Containers start
+# normally after the mount, so only manage them when docker is already up.
+systemctl is-active --quiet docker.service || exit 0
 for c in $CONTAINERS; do
   st=$(docker inspect -f '{{ '{{' }}.State.Status{{ '}}' }}:{{ '{{' }}.State.Error{{ '}}' }}' "$c" 2>/dev/null) || continue
   case "$st" in

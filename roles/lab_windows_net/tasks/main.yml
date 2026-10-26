@@ -54,3 +54,21 @@
   ansible.builtin.debug:
     msg: "{{ lab_guard_run.stdout_lines | default([]) | select('match', '^\\s*[0-9]') | list }}"
   when: lab_guard_script is changed
+
+- name: WSL VM settings (.wslconfig)
+  ansible.windows.win_copy:
+    dest: 'C:\Users\{{ ansible_user }}\.wslconfig'
+    content: |
+      [wsl2]
+      memory={{ lab_wsl_memory }}
+      swap={{ lab_wsl_swap }}
+
+      [experimental]
+      autoMemoryReclaim=gradual
+      sparseVhd=true
+  register: lab_wslconfig
+
+- name: WSL restart needed
+  ansible.builtin.debug:
+    msg: ".wslconfig changed - restart the WSL VM (Restart-Service WslService -Force) to apply"
+  when: lab_wslconfig is changed

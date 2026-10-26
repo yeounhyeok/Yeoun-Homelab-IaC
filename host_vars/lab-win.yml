@@ -19,3 +19,8 @@ lab_portproxy_ts_ports:
 lab_nfs_proxy_enabled: true
 lab_nfs_proxy_target: 100.124.4.110
 lab_nfs_proxy_port: 2049
+
+# %USERPROFILE%\.wslconfig (WSL VM size). PC has 12 GB (8 GB UA2 + 4 GB, 2026-10-26).
+# A change only takes effect after the WSL VM restarts (Restart-Service WslService -Force).
+lab_wsl_memory: 8GB
+lab_wsl_swap: 4GB
