@@ -6,5 +6,5 @@ $SMI --query-gpu=name,driver_version,memory.used,memory.total,utilization.gpu,ut
   | awk -F', ' '{printf "GPU %s (driver %s)  VRAM %s / %s  util %s  nvenc %s  temp %sC\n",$1,$2,$3,$4,$5,$6,$7}'
 FREE=$($SMI --query-gpu=memory.free --format=csv,noheader,nounits | head -1)
 echo "VRAM free: ${FREE} MiB"
-echo "Jellyfin transcodes: $(docker top jellyfin -o args 2>/dev/null | grep -c '[j]ellyfin-ffmpeg/ffmpeg' || true)"
+echo "Jellyfin transcodes: $(docker top jellyfin -o pid,args 2>/dev/null | grep -c '[j]ellyfin-ffmpeg/ffmpeg' || true)"
 echo "GPU jobs (gpu-run): $(docker ps --filter label=gpu-job --format '{{ '{{' }}.Names{{ '}}' }} ({{ '{{' }}.RunningFor{{ '}}' }})' | tr '\n' ' ')"

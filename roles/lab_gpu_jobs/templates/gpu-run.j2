@@ -23,7 +23,7 @@ EP=()
 [ "$IMG" = "$GPU_IMG_FFMPEG" ] && EP=(--entrypoint /usr/lib/jellyfin-ffmpeg/ffmpeg)
 case "$PWD/" in "$GPU_JOBS_DIR"/*) ;; *) echo "run from inside $GPU_JOBS_DIR/<job>" >&2; exit 2 ;; esac
 FREE=$(/usr/lib/wsl/lib/nvidia-smi --query-gpu=memory.free --format=csv,noheader,nounits | head -1)
-TX=$(docker top jellyfin -o args 2>/dev/null | grep -c '[j]ellyfin-ffmpeg/ffmpeg' || true)   # only Jellyfin's own transcodes
+TX=$(docker top jellyfin -o pid,args 2>/dev/null | grep -c '[j]ellyfin-ffmpeg/ffmpeg' || true)   # only Jellyfin's own transcodes
 if [ "$FORCE" = 0 ] && { [ "${FREE:-0}" -lt "$GPU_MIN_FREE_MB" ] || [ "${TX:-0}" -gt 0 ]; }; then
   echo "GPU busy: VRAM free ${FREE}MiB (need ${GPU_MIN_FREE_MB}), Jellyfin transcodes ${TX:-0}. Retry later or --force." >&2
   exit 75
