@@ -1,0 +1,42 @@
+---
+# Only Homepage settings; never touches services/widgets/credentials or restarts Docker.
+# ansible-playbook playbooks/homepage_settings.yml -l n4200
+- name: Deploy Homepage same-tab link settings
+  hosts: n4200
+  gather_facts: false
+  vars:
+    homepage_settings_file: /home/yeoun/docker_volumes/homepage/config/settings.yaml
+    homepage_settings_src: "{{ playbook_dir }}/../compose/n4200/homepage/config/settings.yaml"
+  tasks:
+    - name: Read current settings
+      ansible.builtin.slurp:
+        src: "{{ homepage_settings_file }}"
+      register: homepage_before
+
+    - name: Reject unrelated configuration drift
+      ansible.builtin.assert:
+        that:
+          - >-
+            ((homepage_before.content | b64decode | from_yaml) | combine({'target': '_self'}))
+            == (lookup('file', homepage_settings_src) | from_yaml)
+        fail_msg: Settings drift beyond link target; review instead of overwriting.
+
+    - name: Install settings with backup
+      ansible.builtin.copy:
+        src: "{{ homepage_settings_src }}"
+        dest: "{{ homepage_settings_file }}"
+        mode: '0664'
+        backup: true
+
+    - name: Read back exact deployed settings
+      ansible.builtin.slurp:
+        src: "{{ homepage_settings_file }}"
+      register: homepage_after
+      when: not ansible_check_mode
+
+    - name: Verify semantic equality
+      ansible.builtin.assert:
+        that:
+          - (homepage_after.content | b64decode | from_yaml) == (lookup('file', homepage_settings_src) | from_yaml)
+          - (homepage_after.content | b64decode | from_yaml).target == '_self'
+      when: not ansible_check_mode

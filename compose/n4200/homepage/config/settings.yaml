@@ -1,0 +1,60 @@
+---
+# Redesign 2026-10-16. background block is unchanged from previous config.
+title: Yeoun's Home Server
+description: Yeoun's Home Server
+background:
+  image: https://i.pinimg.com/736x/41/20/97/4120973c715fbcaa8baeb348e7610b5d.jpg
+  blur: sm
+  saturate: 60
+  brightness: 100
+  opacity: 50
+headerStyle: boxedWidgets
+cardBlur: md
+cardStyle: hairline
+blockStyle: refined
+statusStyle: dot
+useEqualHeights: true
+iconStyle: theme
+hideVersion: true
+disableUpdateCheck: true
+target: _self
+providers:
+  openweathermap: openweathermapapikey
+  weatherapi: weatherapiapikey
+quicklaunch:
+  searchDescriptions: true
+  hideInternetSearch: false
+  showSearchSuggestions: false
+  provider: google
+  mobileButtonPosition: bottom-right
+maxGroupColumns: 4
+layout:
+  바로가기:
+    iconsOnly: true
+    icon: mdi-star
+  콘솔:
+    iconsOnly: true
+    icon: mdi-cloud
+  LLMs:
+    iconsOnly: true
+    icon: mdi-robot
+  스토리지:
+    icon: mdi-harddisk
+  문서:
+    icon: mdi-file-document-edit
+  미디어:
+    icon: mdi-play-circle
+  앱·도구:
+    icon: mdi-apps
+  노드:
+    style: row
+    columns: 4
+    icon: mdi-server
+  모니터링:
+    style: row
+    columns: 2
+    icon: mdi-chart-line
+  네트워크·보안:
+    style: row
+    columns: 2
+    icon: mdi-shield-lock
