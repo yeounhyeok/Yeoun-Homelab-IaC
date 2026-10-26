@@ -1,0 +1,10 @@
+---
+# On-demand GPU job tools on lab (gpu-run / gpu-status).
+#   ansible-playbook playbooks/lab_gpu_jobs.yml
+- name: lab GPU jobs
+  hosts: lab
+  gather_facts: false
+  vars:
+    lab_gpu_jobs_enabled: true
+  roles:
+    - lab_gpu_jobs

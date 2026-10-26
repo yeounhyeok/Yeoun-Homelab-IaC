@@ -1,0 +1,38 @@
+---
+- name: On-demand GPU job tools
+  when: lab_gpu_jobs_enabled | bool
+  become: true
+  block:
+    - name: Job workspace
+      ansible.builtin.file:
+        path: "{{ lab_gpu_jobs_dir }}"
+        state: directory
+        owner: "{{ lab_gpu_jobs_user }}"
+        group: "{{ lab_gpu_jobs_user }}"
+        mode: '0755'
+
+    - name: Shared CUDA JIT cache
+      ansible.builtin.file:
+        path: "{{ lab_gpu_jobs_dir }}/.cuda-cache"
+        state: directory
+        owner: "{{ lab_gpu_jobs_user }}"
+        group: "{{ lab_gpu_jobs_user }}"
+        mode: '0755'
+
+    - name: Defaults
+      ansible.builtin.copy:
+        dest: /etc/gpu-jobs.env
+        mode: '0644'
+        content: |
+          # Managed by Yeoun-Homelab-IaC roles/lab_gpu_jobs
+          GPU_JOBS_DIR={{ lab_gpu_jobs_dir }}
+          GPU_IMG_TORCH={{ lab_gpu_img_torch }}
+          GPU_IMG_FFMPEG={{ lab_gpu_img_ffmpeg }}
+          GPU_MIN_FREE_MB={{ lab_gpu_min_free_mb }}
+
+    - name: gpu-status / gpu-run
+      ansible.builtin.template:
+        src: "{{ item }}.j2"
+        dest: "/usr/local/bin/{{ item }}"
+        mode: '0755'
+      loop: [gpu-status, gpu-run]

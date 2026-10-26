@@ -1,0 +1,35 @@
+#!/bin/bash
+# {{ ansible_managed }}
+# Run a one-off GPU container on lab's GTX 1050.
+#   gpu-run [--force] [--name N] [--mem 3g] <image|torch|ffmpeg> [cmd...]
+# - mounts the current directory (must be under $GPU_JOBS_DIR) at /work, workdir /work
+# - CUDA JIT cache persisted (Pascal re-JITs PTX on every start otherwise)
+# - refuses to start when VRAM free < GPU_MIN_FREE_MB or Jellyfin is transcoding
+#   (Jellyfin has priority); --force overrides
+# - low CPU priority (cpu_shares 256, below mc-server 1024), container removed after exit
+set -euo pipefail
+. /etc/gpu-jobs.env
+FORCE=0; NAME="gpujob-$(date +%H%M%S)"; MEM=3g
+while [ $# -gt 0 ]; do case "$1" in
+  --force) FORCE=1; shift ;;
+  --name) NAME="$2"; shift 2 ;;
+  --mem) MEM="$2"; shift 2 ;;
+  *) break ;;
+esac; done
+[ $# -ge 1 ] || { sed -n '3,10p' "$0"; exit 2; }
+IMG="$1"; shift
+case "$IMG" in torch) IMG="$GPU_IMG_TORCH" ;; ffmpeg) IMG="$GPU_IMG_FFMPEG" ;; esac
+EP=()
+[ "$IMG" = "$GPU_IMG_FFMPEG" ] && EP=(--entrypoint /usr/lib/jellyfin-ffmpeg/ffmpeg)
+case "$PWD/" in "$GPU_JOBS_DIR"/*) ;; *) echo "run from inside $GPU_JOBS_DIR/<job>" >&2; exit 2 ;; esac
+FREE=$(/usr/lib/wsl/lib/nvidia-smi --query-gpu=memory.free --format=csv,noheader,nounits | head -1)
+TX=$(docker top jellyfin -o args 2>/dev/null | grep -c '[j]ellyfin-ffmpeg/ffmpeg' || true)   # only Jellyfin's own transcodes
+if [ "$FORCE" = 0 ] && { [ "${FREE:-0}" -lt "$GPU_MIN_FREE_MB" ] || [ "${TX:-0}" -gt 0 ]; }; then
+  echo "GPU busy: VRAM free ${FREE}MiB (need ${GPU_MIN_FREE_MB}), Jellyfin transcodes ${TX:-0}. Retry later or --force." >&2
+  exit 75
+fi
+exec docker run --rm --name "$NAME" --label gpu-job=1 --gpus all \
+  -e NVIDIA_DRIVER_CAPABILITIES=all -e CUDA_CACHE_PATH=/cuda-cache -e HOME=/work \
+  -v "$GPU_JOBS_DIR/.cuda-cache:/cuda-cache" -v "$PWD:/work" -w /work \
+  --user "$(id -u):$(id -g)" --cpu-shares 256 --memory "$MEM" --ipc host \
+  "${EP[@]}" "$IMG" "$@"
