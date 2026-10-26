@@ -13,6 +13,8 @@ ts_advertise_exit_node_by_host: {}
 ts_advertise_exit_node: "{{ (ts_advertise_exit_node_by_host | default({})).get(inventory_hostname, false) | bool }}"
 ts_login_server: ""
 ts_extra_args: []
+# tailscaled UDP port (/etc/default/tailscaled PORT). Empty = leave as is.
+ts_port: ""
 ts_force_reauth: false
 # Avoid needless reconfiguration of an already enrolled node. Set true only
 # when changing explicit tailscale-up options under review.

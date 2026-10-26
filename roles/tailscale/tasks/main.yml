@@ -84,6 +84,22 @@
         state: started
         enabled: true
 
+    # Two nodes behind one home router cannot share the router's UDP
+    # port-forward, so each gets its own tailscaled port (and forward).
+    - name: Pin the tailscaled UDP listen port
+      ansible.builtin.lineinfile:
+        path: /etc/default/tailscaled
+        regexp: '^PORT='
+        line: 'PORT="{{ ts_port }}"'
+      register: ts_port_cfg
+      when: ts_port | string | length > 0
+
+    - name: Restart tailscaled after a listen-port change
+      ansible.builtin.systemd:
+        name: tailscaled
+        state: restarted
+      when: ts_port_cfg is changed
+
     - name: Check current Tailscale status
       ansible.builtin.command: tailscale status --json
       check_mode: false

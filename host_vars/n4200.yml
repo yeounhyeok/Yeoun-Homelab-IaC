@@ -14,3 +14,7 @@ compose_projects:
   - { name: syncthing_n4200, dir: docker_volumes/syncthing_n4200, file: docker-compose.yml }
   - { name: vikunja, dir: docker_volumes/vikunja, file: docker-compose.yml, secrets: true }
   - { name: astro-blog, dir: services/astro-blog, file: compose.yml }
+
+# Home router forwards UDP 41643 -> n4200 192.168.45.99 (2026-10-26) so
+# lab/arm can reach it directly instead of via DERP. n4000 keeps 41641.
+ts_port: 41643
