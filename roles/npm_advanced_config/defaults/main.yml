@@ -1,0 +1,4 @@
+---
+npm_container: nginx-proxy-manager
+npm_data_dir: /home/yeoun/docker_volumes/nginx-proxy-manager/data
+npm_advanced_hosts: []

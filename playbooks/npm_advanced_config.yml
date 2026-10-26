@@ -1,0 +1,11 @@
+---
+# NPM proxy-host advanced config from compose/n4000/nginx-proxy-manager/advanced/.
+#   ansible-playbook playbooks/npm_advanced_config.yml
+- name: NPM advanced config (n4000)
+  hosts: n4000
+  gather_facts: false
+  vars:
+    npm_advanced_hosts:
+      - { id: 18, file: 18-jellyfin.conf }   # jellyfin.yeoun.org
+  roles:
+    - npm_advanced_config

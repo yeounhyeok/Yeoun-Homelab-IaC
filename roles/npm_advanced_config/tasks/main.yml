@@ -1,0 +1,47 @@
+---
+# Sync NPM proxy-host "Advanced" config from the repo. NPM stores it in its
+# SQLite DB and renders it into data/nginx/proxy_host/<id>.conf; we update both
+# (same as saving in the UI) and roll back if nginx -t fails.
+- name: Advanced config snippets
+  become: true
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../compose/n4000/nginx-proxy-manager/advanced/{{ item.file }}"
+    dest: "{{ npm_data_dir }}/advanced-{{ item.id }}.conf"
+    mode: '0644'
+  loop: "{{ npm_advanced_hosts }}"
+  loop_control:
+    label: "{{ item.id }}"
+
+- name: Apply to DB and rendered conf
+  become: true
+  ansible.builtin.script:
+    cmd: npm_apply_advanced.py {{ npm_data_dir }} {{ item.id }}
+    executable: python3
+  loop: "{{ npm_advanced_hosts }}"
+  loop_control:
+    label: "{{ item.id }}"
+  register: npm_adv
+  changed_when: "'CHANGED' in npm_adv.stdout"
+  check_mode: false
+  when: not ansible_check_mode
+
+- name: Validate and reload nginx
+  when: npm_adv is changed
+  block:
+    - name: nginx -t
+      ansible.builtin.command: docker exec {{ npm_container }} nginx -t
+      changed_when: false
+    - name: reload
+      ansible.builtin.command: docker exec {{ npm_container }} nginx -s reload
+  rescue:
+    - name: Roll back
+      become: true
+      ansible.builtin.shell: |
+        for id in {{ npm_advanced_hosts | map(attribute='id') | join(' ') }}; do
+          [ -f {{ npm_data_dir }}/nginx/proxy_host/$id.conf.pre-advanced ] && cp -p {{ npm_data_dir }}/nginx/proxy_host/$id.conf.pre-advanced {{ npm_data_dir }}/nginx/proxy_host/$id.conf
+        done
+        cp -p {{ npm_data_dir }}/database.sqlite.pre-advanced {{ npm_data_dir }}/database.sqlite
+        docker exec {{ npm_container }} nginx -s reload
+    - name: Fail after rollback
+      ansible.builtin.fail:
+        msg: nginx -t failed; rolled back

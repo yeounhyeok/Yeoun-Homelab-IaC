@@ -47,6 +47,7 @@ playbooks/n4000_restore_services.yml  explicit compose restore allow-list
 playbooks/tailscale_enroll.yml        enrollment/reconciliation
 playbooks/docker_stop_all.yml         emergency stop, confirmation required
 playbooks/docker_start_all.yml        emergency start
+playbooks/npm_advanced_config.yml     NPM proxy-host Advanced config (e.g. jellyfin web HEVC->H.264)
 playbooks/lab_media.yml               lab media path (n4000 NFS -> Windows portproxy -> WSL) + lab Windows ports
 ```
 
