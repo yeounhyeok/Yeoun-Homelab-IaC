@@ -24,6 +24,10 @@ services:
       - TZ=Asia/Seoul
       - JELLYFIN_PublishedServerUrl=https://jellyfin.yeoun.org
       - NVIDIA_DRIVER_CAPABILITIES=all
+      # CUDA PTX JIT cache: HOME=/ is not writable for uid 1000, so every ffmpeg start
+      # re-JITs the CUDA filters for Pascal (~4.4s per start/seek). Persist it in /cache.
+      - CUDA_CACHE_PATH=/cache/nvcache
+      - CUDA_CACHE_MAXSIZE=1073741824
     deploy:
       resources:
         reservations:
