@@ -7,3 +7,6 @@ n4000_data_disk_uuid: "CHANGE_ME_AFTER_FRESH_OS_VERIFICATION"
 
 # Keep this false for the first bootstrap. Set true only after the UUID check.
 n4000_mount_data_disk: false
+
+# Home router forwards UDP 41641 -> n4000 (tailscaled port).
+ts_port: 41641
