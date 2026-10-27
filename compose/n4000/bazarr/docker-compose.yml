@@ -1,0 +1,23 @@
+# Managed in Yeoun-Homelab-IaC (compose/n4000/bazarr).
+# Bazarr (subtitle manager) reads the movie list from Radarr and writes subtitles next to each
+# movie file. Jellyfin on lab sees them through the n4000 NFS export (ro) on the next scan.
+# Same container path (/movies) as Radarr so path mapping is identity.
+services:
+  bazarr:
+    image: lscr.io/linuxserver/bazarr:1.6.2
+    container_name: bazarr
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: Asia/Seoul
+    ports:
+      - "100.124.4.110:6767:6767"   # tailnet only (no app login configured)
+    volumes:
+      - ./config:/config
+      - type: bind
+        source: /mnt/usb/media/Movies
+        target: /movies
+        bind:
+          create_host_path: false
+    mem_limit: 512m
+    restart: unless-stopped

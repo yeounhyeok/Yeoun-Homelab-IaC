@@ -17,6 +17,20 @@
                 href: https://audiomuse.yeoun.org
                 ping: https://audiomuse.yeoun.org
                 description: 음악 분석·추천 재생목록 (lab GPU)
+      - id: bazarr
+        after: '^      description: 영상 라이브러리$'
+        block: |2
+            - Bazarr:
+                icon: bazarr.png
+                href: http://100.124.4.110:6767
+                description: 영화 자막 자동 다운로드 (n4000, tailnet)
+      - id: radarr
+        after: '^      description: 영상 라이브러리$'
+        block: |2
+            - Radarr:
+                icon: radarr.png
+                href: http://100.124.4.110:7878
+                description: 영화 라이브러리 인덱스 (Bazarr용, n4000, tailnet)
   tasks:
     - name: Insert/update card blocks
       ansible.builtin.blockinfile:

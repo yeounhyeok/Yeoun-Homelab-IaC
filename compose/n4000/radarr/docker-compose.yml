@@ -1,0 +1,23 @@
+# Managed in Yeoun-Homelab-IaC (compose/n4000/radarr).
+# Radarr is used ONLY as the movie library index that Bazarr requires (Bazarr cannot scan
+# folders on its own). No download client / indexer is configured. Keep Media Management:
+# rename OFF, recycle bin / delete OFF so Radarr never touches existing movie files.
+services:
+  radarr:
+    image: lscr.io/linuxserver/radarr:6.4.4
+    container_name: radarr
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: Asia/Seoul
+    ports:
+      - "100.124.4.110:7878:7878"   # tailnet only (no app login configured)
+    volumes:
+      - ./config:/config
+      - type: bind   # HDD 미마운트 시 빈 폴더로 기동 방지
+        source: /mnt/usb/media/Movies
+        target: /movies
+        bind:
+          create_host_path: false
+    mem_limit: 512m
+    restart: unless-stopped
