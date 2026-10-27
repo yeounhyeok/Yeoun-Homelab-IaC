@@ -1,0 +1,74 @@
+---
+# Permit non-venv pip for yeoun only; keep Ubuntu's EXTERNALLY-MANAGED marker.
+# Do not set install.user globally: that would break pip inside regular venvs.
+# ansible-playbook playbooks/lab_user_pip.yml -l lab
+- name: Enable account-local pip installs and nvitop on lab WSL
+  hosts: lab
+  gather_facts: false
+  become: false
+  tasks:
+    - name: Verify target account
+      ansible.builtin.command: whoami
+      register: lab_pip_user
+      changed_when: false
+      failed_when: lab_pip_user.stdout != 'yeoun'
+      check_mode: false
+
+    - name: Read existing user pip override
+      ansible.builtin.command: python3 -m pip config --user get global.break-system-packages
+      register: lab_pip_override
+      changed_when: false
+      failed_when: lab_pip_override.rc not in [0, 1]
+      check_mode: false
+
+    - name: Enable the override only in yeoun pip config
+      ansible.builtin.command: python3 -m pip config --user set global.break-system-packages true
+      when: lab_pip_override.stdout | trim != 'true'
+      changed_when: true
+
+    - name: Create user executable directory
+      ansible.builtin.file:
+        path: /home/yeoun/.local/bin
+        state: directory
+        mode: '0755'
+
+    - name: Make user commands available in interactive WSL Bash
+      ansible.builtin.blockinfile:
+        path: /home/yeoun/.bashrc
+        marker: '# {mark} ANSIBLE USER PYTHON BIN'
+        backup: true
+        block: |
+          case ":$PATH:" in
+            *":$HOME/.local/bin:"*) ;;
+            *) export PATH="$HOME/.local/bin:$PATH" ;;
+          esac
+
+    - name: Install nvitop without sudo or a per-command protection override
+      ansible.builtin.command:
+        argv: [python3, -m, pip, install, --disable-pip-version-check, nvitop==1.7.2]
+      register: lab_nvitop_install
+      changed_when: "'Successfully installed' in lab_nvitop_install.stdout"
+      when: not ansible_check_mode
+
+    - name: Verify package location and retained Ubuntu protection marker
+      ansible.builtin.command:
+        argv:
+          - python3
+          - -c
+          - |
+            from pathlib import Path
+            import nvitop, sysconfig
+            package = Path(nvitop.__file__).resolve()
+            assert package.is_relative_to(Path.home() / '.local'), str(package)
+            marker = Path(sysconfig.get_path('stdlib')) / 'EXTERNALLY-MANAGED'
+            assert marker.exists(), str(marker)
+            print('nvitop=' + str(package))
+            print('system_marker_preserved=true')
+      register: lab_nvitop_verify
+      changed_when: false
+      when: not ansible_check_mode
+
+    - name: Show verified package location
+      ansible.builtin.debug:
+        var: lab_nvitop_verify.stdout_lines
+      when: not ansible_check_mode
