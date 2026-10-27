@@ -52,6 +52,7 @@ playbooks/cloudflared_upgrade.yml     cloudflared .deb on arm (edge standby tunn
 playbooks/lab_gpu_jobs.yml            on-demand GPU job tools on lab (gpu-run / gpu-status)
 playbooks/lab_media.yml               lab media path (n4000 NFS -> Windows portproxy -> WSL) + lab Windows ports
 playbooks/homepage_cards.yml          Homepage cards owned by IaC (marked blocks in live services.yaml)
+playbooks/navidrome_plugins.yml       Navidrome plugin packages (AudioMuse-AI sonic similarity); enable/config in Navidrome DB
 ```
 
 The old Tailscale backup-named entrypoint was removed; call

@@ -1,0 +1,18 @@
+---
+# Navidrome plugin files (n4000). Plugin enable/config lives in Navidrome's DB (UI -> Plugins).
+# ansible-playbook playbooks/navidrome_plugins.yml -l n4000
+- name: Navidrome plugins
+  hosts: n4000
+  gather_facts: false
+  vars:
+    navidrome_plugins_dir: /home/yeoun/docker_volumes/navidrome/navidrome_data/plugins
+    navidrome_plugins:
+      # AudioMuse-AI-NV-plugin v10 (2026-08-31), sha256 c138e9af16f097d8cd07ac957fb8a49d91a7da066e5b4a1457cadbd479aa10a7
+      - audiomuseai.ndp
+  tasks:
+    - name: Install plugin packages
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../compose/n4000/navidrome/plugins/{{ item }}"
+        dest: "{{ navidrome_plugins_dir }}/{{ item }}"
+        mode: '0644'
+      loop: "{{ navidrome_plugins }}"
