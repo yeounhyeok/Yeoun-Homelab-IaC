@@ -1,0 +1,40 @@
+---
+# Homepage service cards owned by IaC, inserted as marked blocks into the live
+# services.yaml (which also holds widget credentials, so the whole file is NOT in Git).
+# Never rewrites other cards; reloads Homepage only when a block changed.
+# ansible-playbook playbooks/homepage_cards.yml -l n4200
+- name: Homepage IaC-owned service cards
+  hosts: n4200
+  gather_facts: false
+  vars:
+    homepage_services_file: /home/yeoun/docker_volumes/homepage/config/services.yaml
+    homepage_cards:
+      - id: audiomuse
+        after: '^      description: 영상 라이브러리$'   # below Jellyfin in group 미디어
+        block: |2
+            - AudioMuse:
+                icon: mdi-waveform
+                href: https://audiomuse.yeoun.org
+                ping: https://audiomuse.yeoun.org
+                description: 음악 분석·추천 재생목록 (lab GPU)
+  tasks:
+    - name: Insert/update card blocks
+      ansible.builtin.blockinfile:
+        path: "{{ homepage_services_file }}"
+        marker: "  # {mark} IaC card {{ item.id }}"
+        insertafter: "{{ item.after }}"
+        block: "{{ item.block }}"
+        backup: true
+      loop: "{{ homepage_cards }}"
+      loop_control: { label: "{{ item.id }}" }
+      register: homepage_cards_result
+
+    - name: Validate YAML
+      ansible.builtin.command: python3 -c "import yaml,sys; yaml.safe_load(open(sys.argv[1]))" {{ homepage_services_file }}
+      changed_when: false
+      when: not ansible_check_mode
+
+    - name: Reload Homepage when a card changed
+      ansible.builtin.command: docker restart homepage
+      when: not ansible_check_mode and homepage_cards_result is changed
+      changed_when: true
