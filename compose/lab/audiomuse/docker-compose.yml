@@ -69,7 +69,7 @@ services:
 
   # Second worker (2026-10-27): one queue worker per container and the job is CPU-bound
   # (audio decode/spectrogram ~1.5 cores), so two containers share the Postgres queue.
-  # Not three: 4 CPUs and 2 GB VRAM (each worker peaks ~0.75 GB) would both saturate.
+  # Third worker tried 2026-10-27 at the user's request (see worker-3).
   audiomuse-worker-2:
     <<: *worker
     container_name: audiomuse-worker-2
@@ -77,4 +77,13 @@ services:
     volumes:
       - ./temp-worker-2:/app/temp_audio
       - ./plugins-worker-2:/app/plugin/installed
+      - ./cuda-cache:/app/cuda-cache
+
+  audiomuse-worker-3:
+    <<: *worker
+    container_name: audiomuse-worker-3
+    build: !reset null
+    volumes:
+      - ./temp-worker-3:/app/temp_audio
+      - ./plugins-worker-3:/app/plugin/installed
       - ./cuda-cache:/app/cuda-cache
