@@ -87,3 +87,12 @@ services:
       - ./temp-worker-3:/app/temp_audio
       - ./plugins-worker-3:/app/plugin/installed
       - ./cuda-cache:/app/cuda-cache
+
+  audiomuse-worker-4:
+    <<: *worker
+    container_name: audiomuse-worker-4
+    build: !reset null
+    volumes:
+      - ./temp-worker-4:/app/temp_audio
+      - ./plugins-worker-4:/app/plugin/installed
+      - ./cuda-cache:/app/cuda-cache
