@@ -22,15 +22,15 @@
         block: |2
             - Bazarr:
                 icon: bazarr.png
-                href: http://100.124.4.110:6767
-                description: 영화 자막 자동 다운로드 (n4000, tailnet)
+                href: https://bazarr.yeoun.org
+                description: 영화 자막 자동 다운로드 (내부망 전용)
       - id: radarr
         after: '^      description: 영상 라이브러리$'
         block: |2
             - Radarr:
                 icon: radarr.png
-                href: http://100.124.4.110:7878
-                description: 영화 라이브러리 인덱스 (Bazarr용, n4000, tailnet)
+                href: https://radarr.yeoun.org
+                description: 영화 라이브러리 인덱스 (Bazarr용, 내부망 전용)
   tasks:
     - name: Insert/update card blocks
       ansible.builtin.blockinfile:
