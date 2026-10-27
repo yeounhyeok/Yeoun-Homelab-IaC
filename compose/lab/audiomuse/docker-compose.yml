@@ -1,0 +1,68 @@
+# Managed in Yeoun-Homelab-IaC (compose/lab/audiomuse).
+# AudioMuse-AI 3.6.4 — sonic analysis + playlists for Navidrome (n4000).
+#   flask : official CPU image (web UI/API, port 8000 -> Windows portproxy, Tailscale only)
+#   worker: custom CUDA 12 image for the GTX 1050 (see Dockerfile.worker-cu12 for why)
+# DB: shared arm postgres-main (100.117.250.54:5433), db audiomusedb / role audiomuse
+#     (homelab one-DB-engine rule). Password: Vaultwarden homelab/lab/audiomuse.
+# No Redis: 3.6.x queues in PostgreSQL. Audio is fetched through the Navidrome API.
+# Other settings (media server, lyrics, clustering) live in the DB via the Setup Wizard.
+x-db: &db
+  TZ: Asia/Seoul
+  POSTGRES_HOST: 100.117.250.54
+  POSTGRES_PORT: "5433"
+  POSTGRES_DB: audiomusedb
+  POSTGRES_USER: audiomuse
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+  TEMP_DIR: /app/temp_audio
+
+x-log: &log
+  driver: json-file
+  options: { max-size: "10m", max-file: "3" }
+
+services:
+  audiomuse-flask:
+    container_name: audiomuse-flask
+    image: ghcr.io/neptunehub/audiomuse-ai:3.6.4@sha256:811f1f0bd0de97a1b4ab6601898297010da18fc957312b1ed3bb62990683630c
+    environment:
+      <<: *db
+      SERVICE_TYPE: flask
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./temp-flask:/app/temp_audio
+      - ./plugins-flask:/app/plugin/installed
+    cpu_shares: 256
+    mem_limit: 2g
+    restart: unless-stopped
+    logging: *log
+
+  audiomuse-worker:
+    container_name: audiomuse-worker
+    image: audiomuse-ai-worker-cu12:3.6.4
+    build:
+      context: .
+      dockerfile: Dockerfile.worker-cu12
+    environment:
+      <<: *db
+      SERVICE_TYPE: worker
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+      USE_GPU_CLUSTERING: "false"       # cuML/cupy need CUDA 13 / Volta+; clustering stays on CPU
+      MUSICNN_BATCH_SIZE: "8"           # batch 64 overflows 2 GB VRAM and is 5-9x slower than CPU
+      LYRICS_ENABLED: "false"           # Whisper (~570 MB) would compete with Jellyfin for VRAM
+      CUDA_CACHE_PATH: /app/cuda-cache  # Pascal JIT cache (first run compiles for minutes)
+      CUDA_CACHE_MAXSIZE: "1073741824"
+    volumes:
+      - ./temp-worker:/app/temp_audio
+      - ./plugins-worker:/app/plugin/installed
+      - ./cuda-cache:/app/cuda-cache
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    cpu_shares: 256   # mc-server (1024) wins under contention
+    mem_limit: 3g
+    restart: unless-stopped
+    logging: *log

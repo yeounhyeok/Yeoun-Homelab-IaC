@@ -25,3 +25,4 @@ compose_projects:
   - { name: mcserver, dir: docker_volumes/mcserver, file: docker-compose.yml, secrets: true }
   - { name: monitoring-agent, dir: docker_volumes/monitoring-agent, file: docker-compose.yml }
   - { name: jellyfin, dir: docker_volumes/jellyfin, file: docker-compose.yml }
+  - { name: audiomuse, dir: docker_volumes/audiomuse, file: docker-compose.yml, secrets: true, extra_files: [Dockerfile.worker-cu12] }

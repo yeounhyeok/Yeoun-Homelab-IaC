@@ -11,6 +11,7 @@ lab_portproxy_ts_ports:
   - { port: 7007,  fw: 'Monitoring agents 7007/45877 (Tailscale only)' }
   - { port: 45877, fw: 'Monitoring agents 7007/45877 (Tailscale only)' }
   - { port: 8096,  fw: 'Jellyfin 8096 (Tailscale only)' }
+  - { port: 8000,  fw: 'AudioMuse-AI 8000 (Tailscale only)' }
 
 # WSL -> n4000 NFS through Windows. WSL's own NAT path to n4000 is ~5MB/s
 # (both via Windows Tailscale and via a Tailscale node inside WSL, measured

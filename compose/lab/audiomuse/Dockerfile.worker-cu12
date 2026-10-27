@@ -1,0 +1,27 @@
+# Managed in Yeoun-Homelab-IaC (compose/lab/audiomuse).
+# AudioMuse-AI worker for the lab GTX 1050 (Pascal, sm_61).
+#
+# Why a custom image: the official -nvidia image is CUDA 13 (cuBLAS refuses Pascal:
+# "CUBLAS failure 8: architectural feature absent"). Measured on lab 2026-10-27, the only
+# working ONNX Runtime stack on this card is:
+#   onnxruntime-gpu 1.26.0 (last PyPI CUDA 12 build) + cuDNN 9.10.2.21 + cuBLAS 12.6.4.1
+#   (cuDNN cu12 9.27 fails: CUDNN_STATUS_EXECUTION_FAILED_CUDART).
+# MusiCNN batch 8 (AudioMuse default MUSICNN_BATCH_SIZE) = 2.1x CPU at ~1 GB VRAM.
+#
+# Base = the official CPU image of the same release; only ONNX Runtime is swapped.
+# Upgrade: bump the tag+digest here and in docker-compose.yml (flask) together.
+FROM ghcr.io/neptunehub/audiomuse-ai:3.6.4@sha256:811f1f0bd0de97a1b4ab6601898297010da18fc957312b1ed3bb62990683630c
+
+RUN pip uninstall -y --break-system-packages onnxruntime \
+ && pip install --no-cache-dir --break-system-packages \
+      "onnxruntime-gpu[cuda]==1.26.0" \
+      nvidia-cudnn-cu12==9.10.2.21 \
+      nvidia-cublas-cu12==12.6.4.1 \
+      nvidia-cuda-runtime-cu12==12.9.79 nvidia-cuda-nvrtc-cu12==12.9.86 \
+      nvidia-cufft-cu12==11.4.1.4 nvidia-curand-cu12==10.3.10.19 nvidia-nvjitlink-cu12==12.9.86 \
+ && ls -d /usr/local/lib/python3.12/dist-packages/nvidia/*/lib > /etc/ld.so.conf.d/zz-nvidia-pip.conf \
+ && ldconfig \
+ && python3 -c "import onnxruntime as o; v=o.__version__; p=o.get_available_providers(); print(v, p); assert v=='1.26.0' and 'CUDAExecutionProvider' in p" \
+ && pip list 2>/dev/null | grep -i -E "^(onnxruntime|nvidia-)" > /etc/audiomuse-gpu-stack.txt
+
+LABEL org.opencontainers.image.description="AudioMuse-AI 3.6.4 worker, ONNX Runtime CUDA 12 stack for Pascal (GTX 1050)"
