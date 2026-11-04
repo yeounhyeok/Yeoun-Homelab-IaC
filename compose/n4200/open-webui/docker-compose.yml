@@ -2,7 +2,7 @@
 # values live in Vaultwarden item 'homelab/n4200/open-webui' and are rendered into .env by Ansible.
 services:
   open-webui:
-    image: ghcr.io/open-webui/open-webui:main
+    image: ghcr.io/open-webui/open-webui:v0.12.5   # 2026-11-04: :main(0.10.2, 4개월 전 빌드) -> 안정 태그 고정
     container_name: open-webui
     restart: always
     ports:
