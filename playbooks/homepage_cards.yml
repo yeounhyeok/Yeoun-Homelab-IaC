@@ -31,7 +31,30 @@
                 icon: radarr.png
                 href: https://radarr.yeoun.org
                 description: 영화 라이브러리 인덱스 (Bazarr용, 내부망 전용)
+      - id: iptime-ap
+        after: '^      ping: http://192.168.55.150:8080$'   # below SKB router card in 네트워크·보안
+        block: |2
+            - ipTIME AP:
+                icon: mdi-router-wireless
+                href: http://192.168.55.254
+                ping: http://192.168.55.254
+                description: 거실 단자함 AP (Wi-Fi) · Tailscale 외부접속 가능
+      - id: home-gateway
+        after: '^      ping: http://192.168.55.150:8080$'
+        block: |2
+            - 상위 게이트웨이:
+                icon: mdi-router-network
+                href: http://192.168.55.1
+                ping: http://192.168.55.1
+                description: 192.168.55.1 DHCP·포트포워딩 · 내부망 전용
   tasks:
+    - name: Update SKB router card to its new LAN address (was 192.168.45.1)
+      ansible.builtin.replace:
+        path: "{{ homepage_services_file }}"
+        regexp: 'http://192[.]168[.]45[.]1$'
+        replace: 'http://192.168.55.150:8080'
+      register: homepage_skb_result
+
     - name: Insert/update card blocks
       ansible.builtin.blockinfile:
         path: "{{ homepage_services_file }}"
@@ -50,5 +73,5 @@
 
     - name: Reload Homepage when a card changed
       ansible.builtin.command: docker restart homepage
-      when: not ansible_check_mode and homepage_cards_result is changed
+      when: not ansible_check_mode and (homepage_cards_result is changed or homepage_skb_result is changed)
       changed_when: true
