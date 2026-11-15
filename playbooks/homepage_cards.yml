@@ -32,15 +32,15 @@
                 href: https://radarr.yeoun.org
                 description: 영화 라이브러리 인덱스 (Bazarr용, 내부망 전용)
       - id: iptime-ap
-        after: '^      ping: http://192.168.55.150:8080$'   # below SKB router card in 네트워크·보안
+        after: '^      ping: https://skb.yeoun.org$'   # below SKB router card in 네트워크·보안
         block: |2
             - ipTIME AP:
                 icon: mdi-router-wireless
-                href: http://192.168.55.254
-                ping: http://192.168.55.254
-                description: 거실 단자함 AP (Wi-Fi) · Tailscale 외부접속 가능
+                href: https://iptime.yeoun.org
+                ping: https://iptime.yeoun.org
+                description: 거실 단자함 AP (Wi-Fi) · 내부망/Tailscale 전용
       - id: home-gateway
-        after: '^      ping: http://192.168.55.150:8080$'
+        after: '^      ping: https://skb.yeoun.org$'
         block: |2
             - 상위 게이트웨이:
                 icon: mdi-router-network
@@ -48,11 +48,11 @@
                 ping: http://192.168.55.1
                 description: 192.168.55.1 DHCP·포트포워딩 · 내부망 전용
   tasks:
-    - name: Update SKB router card to its new LAN address (was 192.168.45.1)
+    - name: Point SKB router card at its NPM domain (was 192.168.45.1 / 55.150:8080)
       ansible.builtin.replace:
         path: "{{ homepage_services_file }}"
-        regexp: 'http://192[.]168[.]45[.]1$'
-        replace: 'http://192.168.55.150:8080'
+        regexp: 'http://192[.]168[.](?:45[.]1|55[.]150:8080)$'
+        replace: 'https://skb.yeoun.org'
       register: homepage_skb_result
 
     - name: Insert/update card blocks
