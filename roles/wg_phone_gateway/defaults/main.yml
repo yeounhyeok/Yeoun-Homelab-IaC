@@ -1,0 +1,17 @@
+---
+# WireGuard entry point for phones/laptops that should reach the tailnet
+# WITHOUT running the Tailscale app (split tunnel, tailnet ranges only).
+# Opt-in per host (enabled in host_vars/arm.yml). Not the legacy wg0 mesh.
+wg_phone_enabled: false
+wg_phone_iface: wg-phone
+wg_phone_port: 51820
+wg_phone_server_addr: 10.77.0.1/24
+wg_phone_subnet: 10.77.0.0/24
+# tailnet-facing interface; clients are masqueraded behind this host's tailnet IP
+wg_phone_egress_iface: tailscale0
+# 1280 = tailscale0 MTU, avoids fragmentation inside the tunnel
+wg_phone_mtu: 1280
+# Public keys only. Private keys live on the clients (server key on the host
+# at /etc/wireguard/<iface>.key, generated once, never in Git).
+# - { name: s25, public_key: "...", address: 10.77.0.2 }
+wg_phone_peers: []

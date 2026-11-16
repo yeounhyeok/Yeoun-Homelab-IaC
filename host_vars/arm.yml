@@ -16,3 +16,8 @@ compose_projects:
   - { name: transmission, dir: docker_volumes/transmission, file: compose.yml }
   - { name: uptimekuma, dir: docker_volumes/uptimekuma, file: compose.yaml }
   - { name: vaultwarden, dir: docker_volumes/vaultwarden, file: docker-compose.yml }
+
+# WireGuard entry point for phones (split tunnel into the tailnet), 2026-11-16.
+wg_phone_enabled: true
+wg_phone_peers:
+  - { name: s25-phone, public_key: "Eb3AHWPACl0FdLPG7zylVbsNZrvjRt+9b7zInlrInXY=", address: 10.77.0.2 }

@@ -1,0 +1,16 @@
+# Managed by Ansible (role wg_phone_gateway). Do not edit by hand.
+[Interface]
+Address = {{ wg_phone_server_addr }}
+ListenPort = {{ wg_phone_port }}
+MTU = {{ wg_phone_mtu }}
+PrivateKey = {{ wg_phone_key.content | b64decode | trim }}
+# Clients are NATed behind this host's tailnet address so every tailnet node can answer them.
+PostUp = iptables -I FORWARD 1 -i %i -o {{ wg_phone_egress_iface }} -j ACCEPT; iptables -I FORWARD 1 -i {{ wg_phone_egress_iface }} -o %i -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT; iptables -t nat -I POSTROUTING 1 -s {{ wg_phone_subnet }} -o {{ wg_phone_egress_iface }} -j MASQUERADE; iptables -t mangle -I FORWARD 1 -o {{ wg_phone_egress_iface }} -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
+PostDown = iptables -D FORWARD -i %i -o {{ wg_phone_egress_iface }} -j ACCEPT; iptables -D FORWARD -i {{ wg_phone_egress_iface }} -o %i -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT; iptables -t nat -D POSTROUTING -s {{ wg_phone_subnet }} -o {{ wg_phone_egress_iface }} -j MASQUERADE; iptables -t mangle -D FORWARD -o {{ wg_phone_egress_iface }} -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
+
+{% for p in wg_phone_peers %}
+# {{ p.name }}
+[Peer]
+PublicKey = {{ p.public_key }}
+AllowedIPs = {{ p.address }}/32
+{% endfor %}

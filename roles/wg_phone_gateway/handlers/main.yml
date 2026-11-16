@@ -1,0 +1,5 @@
+---
+- name: Restart wg-phone
+  ansible.builtin.systemd:
+    name: "wg-quick@{{ wg_phone_iface }}"
+    state: restarted

@@ -1,0 +1,69 @@
+---
+- name: Install wireguard-tools
+  ansible.builtin.apt:
+    name: wireguard-tools
+    state: present
+    lock_timeout: 180
+  when: wg_phone_enabled | bool
+
+- name: Enable IPv4 forwarding (persistent)
+  ansible.posix.sysctl:
+    name: net.ipv4.ip_forward
+    value: "1"
+    sysctl_set: true
+    state: present
+    reload: true
+  when: wg_phone_enabled | bool
+
+- name: Check for the server private key
+  ansible.builtin.stat:
+    path: "/etc/wireguard/{{ wg_phone_iface }}.key"
+  register: wg_phone_key_stat
+  when: wg_phone_enabled | bool
+
+- name: Generate the server private key once (stays on the host, never in Git)
+  ansible.builtin.shell: "umask 077 && wg genkey > /etc/wireguard/{{ wg_phone_iface }}.key"
+  args:
+    creates: "/etc/wireguard/{{ wg_phone_iface }}.key"
+  when:
+    - wg_phone_enabled | bool
+    - not (wg_phone_key_stat.stat.exists | default(false))
+    - not ansible_check_mode
+
+- name: Read the server private key
+  ansible.builtin.slurp:
+    src: "/etc/wireguard/{{ wg_phone_iface }}.key"
+  register: wg_phone_key
+  no_log: true
+  when: wg_phone_enabled | bool and not ansible_check_mode
+
+- name: Render {{ wg_phone_iface }}.conf
+  ansible.builtin.template:
+    src: wg-phone.conf.j2
+    dest: "/etc/wireguard/{{ wg_phone_iface }}.conf"
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+  when: wg_phone_enabled | bool and not ansible_check_mode
+  notify: Restart wg-phone
+
+- name: Enable and start wg-quick@{{ wg_phone_iface }}
+  ansible.builtin.systemd:
+    name: "wg-quick@{{ wg_phone_iface }}"
+    enabled: true
+    state: started
+  when: wg_phone_enabled | bool and not ansible_check_mode
+
+- name: Show the server public key (for client configs)
+  ansible.builtin.shell: "wg pubkey < /etc/wireguard/{{ wg_phone_iface }}.key"
+  register: wg_phone_pub
+  changed_when: false
+  check_mode: false
+  no_log: false
+  when: wg_phone_enabled | bool and (wg_phone_key_stat.stat.exists | default(false) or not ansible_check_mode)
+
+- name: Report public key
+  ansible.builtin.debug:
+    msg: "{{ wg_phone_iface }} server public key: {{ wg_phone_pub.stdout }}"
+  when: wg_phone_pub is defined and wg_phone_pub.stdout is defined

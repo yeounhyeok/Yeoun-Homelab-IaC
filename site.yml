@@ -13,3 +13,5 @@
       tags: [baseline, ram]
     - role: tailscale
       tags: [baseline, tailscale]
+    - role: wg_phone_gateway
+      tags: [wg_phone]
