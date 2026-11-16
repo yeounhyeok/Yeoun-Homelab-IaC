@@ -3,7 +3,7 @@
 # WITHOUT running the Tailscale app (split tunnel, tailnet ranges only).
 # Opt-in per host (enabled in host_vars/arm.yml). Not the legacy wg0 mesh.
 wg_phone_enabled: false
-wg_phone_iface: wg-phone
+wg_phone_iface: wg0
 wg_phone_port: 51820
 wg_phone_server_addr: 10.77.0.1/24
 wg_phone_subnet: 10.77.0.0/24
