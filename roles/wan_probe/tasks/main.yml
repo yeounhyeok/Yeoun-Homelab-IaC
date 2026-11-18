@@ -1,0 +1,22 @@
+---
+# Added 2026-11-18 after the 11/17 10:46-11/18 09:48 SKB outage whose layer could
+# not be identified after the fact. Home nodes probe the ladder; arm probes the
+# home public IP from outside (see host_vars/arm.yml).
+- name: Probe script
+  become: true
+  ansible.builtin.copy: {src: wan-probe.sh, dest: /usr/local/bin/wan-probe.sh, mode: '0755'}
+  notify: Restart wan-probe
+- name: Probe config
+  become: true
+  ansible.builtin.template: {src: wan-probe.default.j2, dest: /etc/default/wan-probe, mode: '0644'}
+  notify: Restart wan-probe
+- name: systemd unit
+  become: true
+  ansible.builtin.copy: {src: wan-probe.service, dest: /etc/systemd/system/wan-probe.service, mode: '0644'}
+  notify: Restart wan-probe
+- name: logrotate
+  become: true
+  ansible.builtin.copy: {src: wan-probe.logrotate, dest: /etc/logrotate.d/wan-probe, mode: '0644'}
+- name: Enable and start
+  become: true
+  ansible.builtin.systemd: {name: wan-probe, enabled: true, state: started, daemon_reload: true}

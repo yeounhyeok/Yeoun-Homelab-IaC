@@ -1,0 +1,7 @@
+---
+- name: Restart wan-probe
+  become: true
+  ansible.builtin.systemd:
+    name: wan-probe
+    state: restarted
+    daemon_reload: true

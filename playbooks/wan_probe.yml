@@ -1,0 +1,15 @@
+---
+# ansible-playbook playbooks/wan_probe.yml
+- name: Home nodes - ping ladder
+  hosts: home_nodes
+  become: true
+  vars:
+    wan_probe_iface: "{{ 'enp2s0' if inventory_hostname == 'n4000' else 'wlp1s0' }}"
+  roles: [wan_probe]
+- name: arm - external view of the home public IP
+  hosts: oci_nodes
+  become: true
+  vars:
+    wan_probe_targets: "homepub=222.233.104.24 cf=1.1.1.1"
+    wan_probe_gw: ""
+  roles: [wan_probe]

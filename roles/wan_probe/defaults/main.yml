@@ -1,0 +1,6 @@
+---
+# Ladder = modem LAN side -> ISP (SKB) DNS -> public anchors. Order matters in logs.
+wan_probe_targets: "modem=192.168.55.1 skbdns=210.220.163.82 cf=1.1.1.1 g=8.8.8.8"
+wan_probe_iface: ""
+wan_probe_gw: "192.168.55.1"
+wan_probe_interval: 10
