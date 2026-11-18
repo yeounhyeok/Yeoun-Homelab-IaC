@@ -22,6 +22,12 @@ fi
 if [ -z "${MOUNTED:-}" ]; then
   mount -t nfs4 -o {{ wsl_nfs_options }} "$SRC" "$MP" || exit 1
   echo "mounted $SRC on $MP"
+  # A fresh mount must restart the containers even when the mountpoint was empty
+  # beforehand (REMOUNT=0): the bind mount is rprivate, so a running container keeps
+  # the old stale NFS mount and never sees the new one (2026-11-17 outage: n4000
+  # unreachable -> mount failed -> next run mounted without a restart -> Jellyfin
+  # stuck on the stale view until the next unrelated remount).
+  REMOUNT=1
 fi
 # At boot this runs Before=docker.service: calling docker here would socket-activate
 # dockerd, which waits for this unit -> deadlock until timeout. Containers start
