@@ -1,0 +1,129 @@
+/* ============================================================
+   Yeoun's Home Server — Homepage custom.css  (2026-10-16 redesign)
+   - 배경(background)은 settings.yaml 그대로 두고 건드리지 않는다.
+   - 12칸 그리드 + 반응형, 글래스 카드, 아이콘 북마크 정돈
+   ============================================================ */
+
+:root {
+  --hp-radius: 14px;
+  --hp-gap: 0.9rem;
+}
+
+/* ---------- 레이아웃: 12칸 그리드 ---------- */
+#layout-groups {
+  display: grid !important;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 0.25rem var(--hp-gap);
+  align-items: start;
+}
+#layout-groups > .services-group,
+#layout-groups > .bookmark-group {
+  flex: none !important;
+  min-width: 0;
+  grid-column: span 1;
+}
+
+@media (min-width: 640px) {
+  #layout-groups { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  #layout-groups > .services-group { grid-column: span 3; }
+  #layout-groups > .bookmark-group { grid-column: span 2; }
+  /* 미디어는 2번째 줄 전체, 앱·도구·노드는 전체 폭 */
+  #layout-groups > .services-group:has(li.service[data-name="Navidrome"]),
+  #layout-groups > .services-group:has(li.service[data-name="Vaultwarden"]),
+  #layout-groups > .services-group:has(li.service[data-name="arm"]) { grid-column: span 6; }
+}
+
+@media (min-width: 1024px) {
+  #layout-groups { grid-template-columns: repeat(12, minmax(0, 1fr)); }
+  /* 위 행: 스토리지·문서·미디어 3열(각 4칸). 앱·도구는 바로 아래 행 전체 폭(12칸) */
+  #layout-groups > .services-group { grid-column: span 4; }
+  #layout-groups > .services-group:has(li.service[data-name="Navidrome"]) { grid-column: span 4; }
+  #layout-groups > .bookmark-group { grid-column: span 4; }
+  #layout-groups > .services-group:has(li.service[data-name="Vaultwarden"]),
+  #layout-groups > .services-group:has(li.service[data-name="arm"]) { grid-column: span 12; }
+  #layout-groups > .services-group:has(li.service[data-name="Uptime Kuma"]),
+  #layout-groups > .services-group:has(li.service[data-name="Authentik"]) { grid-column: span 6; }
+}
+
+/* ---------- 그룹 헤더 ---------- */
+.service-group-name,
+.bookmark-group-name {
+  font-size: 1.05rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.02em;
+  opacity: 0.92;
+}
+.service-group-icon,
+.bookmark-group-icon {
+  width: 1.5rem !important;
+  height: 1.5rem !important;
+  opacity: 0.85;
+}
+.service-group-icon > div,
+.bookmark-group-icon > div {
+  width: 22px !important;
+  height: 22px !important;
+}
+.services-list,
+.bookmark-list { margin-top: 0.55rem !important; }
+
+/* ---------- 서비스 카드 ---------- */
+.service-card {
+  border-radius: var(--hp-radius) !important;
+  background: rgb(15 23 42 / 0.38) !important;
+  transition: transform 0.18s ease, background 0.18s ease, box-shadow 0.18s ease !important;
+}
+.service-card:hover {
+  background: rgb(30 41 59 / 0.55) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px -10px rgb(0 0 0 / 0.55);
+}
+.service-name { font-size: 0.92rem !important; font-weight: 600; }
+.service-description {
+  font-size: 0.74rem !important;
+  opacity: 0.68;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.service-title { min-height: 2.9rem; }
+
+/* 위젯 수치 블록 */
+.service-container .service-block,
+.service-card .service-block { border-radius: 10px; }
+
+/* ---------- 아이콘 북마크 ---------- */
+.bookmark-list {
+  grid-template-columns: repeat(auto-fill, 52px) !important;
+  justify-content: start;
+  gap: 8px !important;
+}
+.bookmark a {
+  width: 52px !important;
+  height: 52px !important;
+  border-radius: 12px !important;
+  background: rgb(15 23 42 / 0.38) !important;
+  transition: transform 0.15s ease, background 0.15s ease !important;
+}
+.bookmark a:hover {
+  background: rgb(30 41 59 / 0.6) !important;
+  transform: translateY(-2px) scale(1.04);
+}
+
+/* ---------- 정보 위젯 / 탭 ---------- */
+#information-widgets .information-widget-resource,
+#information-widgets > div > div { border-radius: var(--hp-radius); }
+#myTab { border-radius: var(--hp-radius) !important; }
+#myTab button { border-radius: 10px !important; font-weight: 500; letter-spacing: 0.04em; }
+#myTab button[aria-selected="true"] {
+  background: rgb(255 255 255 / 0.16) !important;
+  font-weight: 700;
+}
+
+/* 검색창 */
+#information-widgets input[type="text"],
+#information-widgets input[type="search"] { border-radius: 10px !important; }
+
+/* 스크롤바 */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: rgb(148 163 184 / 0.35); border-radius: 8px; }

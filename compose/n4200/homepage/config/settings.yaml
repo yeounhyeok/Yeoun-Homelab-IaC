@@ -45,6 +45,8 @@ layout:
   미디어:
     icon: mdi-play-circle
   앱·도구:
+    style: row
+    columns: 4
     icon: mdi-apps
   노드:
     style: row

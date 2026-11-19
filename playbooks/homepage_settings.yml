@@ -1,5 +1,6 @@
 ---
 # Only Homepage settings; never touches services/widgets/credentials or restarts Docker.
+# Drift guard: live file must equal the candidate once the intended keys (target, group columns, 앱·도구 row) are applied.
 # ansible-playbook playbooks/homepage_settings.yml -l n4200
 - name: Deploy Homepage same-tab link settings
   hosts: n4200
@@ -7,6 +8,10 @@
   vars:
     homepage_settings_file: /home/yeoun/docker_volumes/homepage/config/settings.yaml
     homepage_settings_src: "{{ playbook_dir }}/../compose/n4200/homepage/config/settings.yaml"
+    homepage_css_file: /home/yeoun/docker_volumes/homepage/config/custom.css
+    homepage_css_src: "{{ playbook_dir }}/../compose/n4200/homepage/config/custom.css"
+    # sha256 of the live custom.css before the 2026-11-19 layout change (imported baseline)
+    homepage_css_known_sha256: 25d7af81d090439ad32981f0bedd752f856ba7a0622a0b60f09e74ccc7496ff2
   tasks:
     - name: Read current settings
       ansible.builtin.slurp:
@@ -17,7 +22,10 @@
       ansible.builtin.assert:
         that:
           - >-
-            ((homepage_before.content | b64decode | from_yaml) | combine({'target': '_self'}))
+            ((homepage_before.content | b64decode | from_yaml)
+              | combine({'target': '_self', 'maxGroupColumns': 4,
+                         'layout': {'앱·도구': {'style': 'row', 'columns': 4, 'icon': 'mdi-apps'}}},
+                        recursive=True))
             == (lookup('file', homepage_settings_src) | from_yaml)
         fail_msg: Settings drift beyond link target; review instead of overwriting.
 
@@ -48,3 +56,23 @@
           - (homepage_after.content | b64decode | from_yaml) == (lookup('file', homepage_settings_src) | from_yaml)
           - (homepage_after.content | b64decode | from_yaml).target == '_self'
       when: not ansible_check_mode
+
+    - name: Stat live custom.css
+      ansible.builtin.stat:
+        path: "{{ homepage_css_file }}"
+        checksum_algorithm: sha256
+      register: homepage_css_before
+
+    - name: Reject custom.css drift (live must be the imported baseline or already the candidate)
+      ansible.builtin.assert:
+        that:
+          - homepage_css_before.stat.exists
+          - homepage_css_before.stat.checksum in [homepage_css_known_sha256, lookup('ansible.builtin.file', homepage_css_src, rstrip=false) | hash('sha256')]
+        fail_msg: custom.css drifted from the imported baseline; review instead of overwriting.
+
+    - name: Install custom.css with backup (served per request; no restart)
+      ansible.builtin.copy:
+        src: "{{ homepage_css_src }}"
+        dest: "{{ homepage_css_file }}"
+        mode: '0664'
+        backup: true
