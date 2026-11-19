@@ -14,7 +14,6 @@ compose_restore_approved_services:
   - nginx-proxy-manager
   - obsidian-mcp
   - obsidian-mcp-hsshin
-  - obsidian-mcp-vilab
   - syncthing
   - vaultwarden
 compose_restore_data_disk_services:
@@ -24,7 +23,6 @@ compose_restore_data_disk_services:
   - nextcloud
   - obsidian-mcp
   - obsidian-mcp-hsshin
-  - obsidian-mcp-vilab
   - syncthing
 compose_restore_data_mount_path: /mnt/usb
 compose_restore_data_disk_uuid: "{{ n4000_data_disk_uuid | default('') }}"

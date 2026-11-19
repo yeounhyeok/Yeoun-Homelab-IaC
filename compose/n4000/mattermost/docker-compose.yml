@@ -1,0 +1,63 @@
+# Managed in Yeoun-Homelab-IaC (compose/n4000/mattermost). Secrets are ${VAR} only;
+# values live in Vaultwarden item 'homelab/n4000/mattermost' (fields '.env::*') and are
+# rendered into .env by Ansible.
+#
+# Mattermost Team Edition, ESR 11.7 (support until 2027-05-15). Image is amd64-only, hence n4000.
+# DB: shared postgres-main on arm (tailnet 100.117.250.54:5433), dedicated DB mattermost_db /
+# role mattermost_user (user rule: one DB engine, no extra Postgres container).
+# Public at https://vilab.yeoun.org (was obsidian-mcp-vilab host) via Cloudflare tunnel -> NPM (row clones obsidian-mcp:
+# upstream = container name on nginx-proxy-manager_default). Not behind Authentik on purpose:
+# Authentik forward-auth breaks the mobile/desktop apps and the WebSocket; the app's own login,
+# closed signup and MFA are the gate.
+services:
+  mattermost:
+    image: mattermost/mattermost-team-edition:11.7.15
+    container_name: mattermost
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 512
+    mem_limit: 1280m
+    environment:
+      TZ: Asia/Seoul
+      MM_SQLSETTINGS_DRIVERNAME: postgres
+      MM_SQLSETTINGS_DATASOURCE: postgres://mattermost_user:${MM_DB_PASSWORD}@100.117.250.54:5433/mattermost_db?sslmode=disable&connect_timeout=10
+      MM_SQLSETTINGS_MAXOPENCONNS: "30"
+      MM_SQLSETTINGS_MAXIDLECONNS: "10"
+      MM_SERVICESETTINGS_SITEURL: https://vilab.yeoun.org
+      MM_SERVICESETTINGS_LISTENADDRESS: ":8065"
+      # mmctl --local (admin bootstrap) talks over a unix socket inside the container only
+      MM_SERVICESETTINGS_ENABLELOCALMODE: "true"
+      MM_TEAMSETTINGS_ENABLEOPENSERVER: "false"
+      MM_TEAMSETTINGS_ENABLEUSERCREATION: "true"
+      MM_EMAILSETTINGS_ENABLESIGNUPWITHEMAIL: "false"
+      MM_EMAILSETTINGS_REQUIREEMAILVERIFICATION: "false"
+      MM_SERVICESETTINGS_ENABLEMULTIFACTORAUTHENTICATION: "true"
+      MM_SERVICESETTINGS_MAXLOGINATTEMPTS: "10"
+      MM_FILESETTINGS_MAXFILESIZE: "52428800"
+      MM_LOGSETTINGS_ENABLEDIAGNOSTICS: "false"
+      MM_LOGSETTINGS_CONSOLELEVEL: INFO
+      MM_LOGSETTINGS_ENABLEFILE: "false"
+      MM_SERVICESETTINGS_ENABLEDEVELOPER: "false"
+    volumes:
+      - ./config:/mattermost/config
+      - ./data:/mattermost/data
+      - ./plugins:/mattermost/plugins
+      - ./client-plugins:/mattermost/client/plugins
+    ports:
+      - "127.0.0.1:8065:8065"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8065/api/v4/system/ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+    networks:
+      - default
+      - nginx-proxy-manager_default
+
+networks:
+  nginx-proxy-manager_default:
+    external: true

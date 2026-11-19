@@ -1,5 +1,8 @@
 # Managed in Yeoun-Homelab-IaC (compose/n4000/obsidian-mcp-vilab). Secrets are ${VAR} only;
 # values live in Vaultwarden item 'homelab/n4000/obsidian-mcp-vilab' and are rendered into .env by Ansible.
+# DISABLED 2026-11-19 (user request): vilab.yeoun.org now serves Mattermost. Container stopped,
+# removed from host_vars compose_projects and rebuild/restore lists. Data/vault untouched.
+# To re-enable: give it another hostname (VAULT_MCP_PUBLIC_URL/ALLOWED_HOSTS), restore the lists.
 services:
   obsidian-mcp-vilab:
     build: .
@@ -22,7 +25,7 @@ services:
           create_host_path: false
     ports:
       - "127.0.0.1:8422:8422"
-    restart: always
+    restart: "no"
     networks:
       - default
       - nginx-proxy-manager_default

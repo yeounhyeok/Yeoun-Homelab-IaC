@@ -13,7 +13,6 @@ n4000_service_directories:
   - nginx-proxy-manager
   - obsidian-mcp
   - obsidian-mcp-hsshin
-  - obsidian-mcp-vilab
   - syncthing
   - vaultwarden
 
