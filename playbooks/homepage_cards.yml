@@ -17,20 +17,6 @@
                 href: https://audiomuse.yeoun.org
                 ping: https://audiomuse.yeoun.org
                 description: 음악 분석·추천 재생목록 (lab GPU)
-      - id: bazarr
-        after: '^      description: 영상 라이브러리$'
-        block: |2
-            - Bazarr:
-                icon: bazarr.png
-                href: https://bazarr.yeoun.org
-                description: 영화 자막 자동 다운로드 (내부망 전용)
-      - id: radarr
-        after: '^      description: 영상 라이브러리$'
-        block: |2
-            - Radarr:
-                icon: radarr.png
-                href: https://radarr.yeoun.org
-                description: 영화 라이브러리 인덱스 (Bazarr용, 내부망 전용)
       - id: iptime-ap
         after: '^      ping: https://skb.yeoun.org$'   # below SKB router card in 네트워크·보안
         block: |2
@@ -66,6 +52,15 @@
       loop_control: { label: "{{ item.id }}" }
       register: homepage_cards_result
 
+    - name: Remove retired cards (bazarr, radarr removed 2026-11-19)
+      ansible.builtin.blockinfile:
+        path: "{{ homepage_services_file }}"
+        marker: "  # {mark} IaC card {{ item }}"
+        state: absent
+        backup: true
+      loop: [bazarr, radarr]
+      register: homepage_removed_result
+
     - name: Validate YAML
       ansible.builtin.command: python3 -c "import yaml,sys; yaml.safe_load(open(sys.argv[1]))" {{ homepage_services_file }}
       changed_when: false
@@ -73,5 +68,5 @@
 
     - name: Reload Homepage when a card changed
       ansible.builtin.command: docker restart homepage
-      when: not ansible_check_mode and (homepage_cards_result is changed or homepage_skb_result is changed)
+      when: not ansible_check_mode and (homepage_cards_result is changed or homepage_skb_result is changed or homepage_removed_result is changed)
       changed_when: true
