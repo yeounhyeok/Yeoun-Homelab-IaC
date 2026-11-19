@@ -49,7 +49,8 @@ services:
     ports:
       - "127.0.0.1:8065:8065"
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:8065/api/v4/system/ping"]
+      # image ships no curl/sh; mmctl talks to the local unix socket
+      test: ["CMD", "mmctl", "--local", "system", "status"]
       interval: 30s
       timeout: 5s
       retries: 5
